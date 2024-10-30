@@ -8717,9 +8717,9 @@ void srt::CUDT::processCtrlAckAck(const CPacket& ctrlpkt, const time_point& tsAr
 
     if (rtt <= 0)
     {
-        LOGC(inlog.Error,
+        /*LOGC(inlog.Error,
             log << CONID() << "IPE: invalid RTT estimate " << rtt
-            << ", possible time shift. Clock: " << SRT_SYNC_CLOCK_STR);
+            << ", possible time shift. Clock: " << SRT_SYNC_CLOCK_STR);*/
         return;
     }
 
@@ -10704,7 +10704,7 @@ int srt::CUDT::processData(CUnit* in_unit)
     if (m_bPeerRexmitFlag && was_sent_in_order)
     {
         ++m_iConsecOrderedDelivery;
-        if (m_iConsecOrderedDelivery >= 50)
+        if (0 && m_iConsecOrderedDelivery >= 50) // disable
         {
             m_iConsecOrderedDelivery = 0;
             if (m_iReorderTolerance > 0)
@@ -10867,7 +10867,7 @@ void srt::CUDT::unlose(const CPacket &packet)
             HLOGC(qrlog.Debug, log << "... arrived at TTL " << had_ttl << " case " << m_iConsecEarlyDelivery);
 
             // After 10 consecutive
-            if (m_iConsecEarlyDelivery >= 10)
+            if (0 && m_iConsecEarlyDelivery >= 10)
             {
                 m_iConsecEarlyDelivery = 0;
                 if (m_iReorderTolerance > 0)
@@ -11451,7 +11451,7 @@ int srt::CUDT::checkNAKTimer(const steady_clock::time_point& currtime)
         if (currtime <= m_tsNextNAKTime.load())
             return BECAUSE_NO_REASON; // wait for next NAK time
 
-        sendCtrl(UMSG_LOSSREPORT);
+        //sendCtrl(UMSG_LOSSREPORT); //periodic retransmissions
         debug_decision = BECAUSE_NAKREPORT;
     }
 
