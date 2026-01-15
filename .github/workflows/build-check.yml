@@ -53,7 +53,7 @@ jobs:
 
       - name: Verify library was built
         run: |
-          docker run --rm srt-builder:${{ matrix.arch }} ls -la /build/build/libsrt.so*
+          docker run --rm srt-builder:${{ matrix.arch }} find /build/build -name "libsrt.so*" -ls
 
       - name: Build Summary
         run: |
