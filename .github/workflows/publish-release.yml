@@ -248,6 +248,17 @@ jobs:
           body: |
             ## srt v${{ needs.calculate-version.outputs.version }}
 
+            SRT (Secure Reliable Transport) library with bonding and encryption support.
+
+            ### Dependency Chain
+            ```
+            srt (this package) ← base package
+              └── libssl3
+            
+            Used by:
+              └── srtla → ceracoder → ceralive-device
+            ```
+
             ### Debian Packages
             | Architecture | Package |
             |--------------|---------|
