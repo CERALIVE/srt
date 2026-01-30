@@ -9,54 +9,40 @@ on:
 jobs:
   build:
     name: Build ${{ matrix.arch }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        arch: [arm64, amd64]
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Build SRT for ${{ matrix.arch }}
+      - name: Install dependencies
         run: |
-          PLATFORM="linux/${{ matrix.arch }}"
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git libssl-dev pkg-config tclsh
 
-          docker buildx build \
-            --platform "$PLATFORM" \
-            --load \
-            -t srt-builder:${{ matrix.arch }} \
-            -f - . <<'DOCKERFILE'
-          FROM debian:bookworm-slim
-          RUN apt-get update && apt-get install -y \
-              build-essential \
-              cmake \
-              git \
-              libssl-dev \
-              pkg-config \
-              tclsh \
-              && rm -rf /var/lib/apt/lists/*
-          WORKDIR /build
-          COPY . .
-          RUN cmake -B build \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DENABLE_APPS=OFF \
-              -DENABLE_BONDING=ON \
-              -DENABLE_ENCRYPTION=ON \
-              && cmake --build build -j$(nproc)
-          DOCKERFILE
+      - name: Build SRT
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_APPS=OFF \
+            -DENABLE_BONDING=ON \
+            -DENABLE_ENCRYPTION=ON
+          cmake --build build -j$(nproc)
 
       - name: Verify library was built
         run: |
-          docker run --rm srt-builder:${{ matrix.arch }} find /build/build -name "libsrt.so*" -ls
+          find build -name "libsrt.so*" -ls
+          file build/libsrt.so*
 
       - name: Build Summary
         run: |
           echo "## ✅ Build Check Passed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Architecture:** ${{ matrix.arch }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Runner:** ${{ matrix.runner }}" >> $GITHUB_STEP_SUMMARY
