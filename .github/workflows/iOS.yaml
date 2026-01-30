@@ -16,10 +16,12 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+    
     - name: configure
       run: |
         mkdir _build && cd _build
-        cmake ../ -DENABLE_ENCRYPTION=OFF -DENABLE_STDCXX_SYNC=${{matrix.cxxstdsync}} -DENABLE_UNITTESTS=OFF -DENABLE_BONDING=ON --toolchain scripts/iOS.cmake
+        cmake ../ -DENABLE_ENCRYPTION=OFF -DENABLE_STDCXX_SYNC=${{matrix.cxxstdsync}} -DENABLE_UNITTESTS=OFF -DENABLE_BONDING=ON --toolchain ../scripts/iOS.cmake
+        
     - name: build
       run: cd _build && cmake --build ./
