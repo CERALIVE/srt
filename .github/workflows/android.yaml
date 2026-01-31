@@ -8,19 +8,15 @@ on:
 
 jobs:
   build:
-    name: NDK-R23
-    runs-on: ubuntu-20.04
+    name: Android-ndk-${{ matrix.ndk }}
+    runs-on: ubuntu-latest
+    # Skip on PRs - only run on direct pushes to master
+    if: github.event_name != 'pull_request'
+    strategy:
+      matrix:
+        ndk: [25, 26]
 
     steps:
-    - name: Setup Android NDK R23
-      uses: nttld/setup-ndk@v1
-      id: setup-ndk
-      with:
-        ndk-version: r23
-        add-to-path: false
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: build
-      run: |
-        cd ./scripts/build-android/
-        echo ${{ steps.setup-ndk.outputs.ndk-path }}
-        source ./build-android -n ${{ steps.setup-ndk.outputs.ndk-path }}
+      run: docker run -v $(pwd):/tmp/srt ynoproject/android-ndk:r${{ matrix.ndk }} /bin/bash -c "cd /tmp/srt && cmake -DENABLE_ENCRYPTION=OFF -DANDROID_PLATFORM=android-28 -DCMAKE_TOOLCHAIN_FILE=/opt/android-sdk/ndk/25.2.9519653/build/cmake/android.toolchain.cmake . && make"

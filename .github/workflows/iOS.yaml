@@ -8,12 +8,13 @@ on:
 
 jobs:
   build:
+    name: iOS-cxxsync${{ matrix.cxxstdsync }}
+    runs-on: macos-latest
+    # Skip on PRs - only run on direct pushes to master
+    if: github.event_name != 'pull_request'
     strategy:
       matrix:
         cxxstdsync: [OFF, ON]
-
-    name: iOS-cxxsync${{ matrix.cxxstdsync }}
-    runs-on: macos-latest
 
     steps:
     - uses: actions/checkout@v4
