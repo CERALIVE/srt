@@ -48,3 +48,6 @@ compile_commands.json
 .idea/
 cmake-build-debug/
 tags
+
+# OpenCode agent state (local only)
+.omo/
