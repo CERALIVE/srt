@@ -1,0 +1,28 @@
+name: ctest
+
+# CERALIVE addition: build libsrt with the developer test apps and the
+# GoogleTest unit/bonding suite enabled, then run the full ctest suite.
+# The upstream cxx11 workflow also runs ctest, but couples it to the
+# SonarCloud build-wrapper; this job is a self-contained regression gate.
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ctest:
+    name: ubuntu ctest
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: deps
+      run: sudo apt-get update && sudo apt-get install -y libssl-dev
+    - name: configure
+      run: cmake -B build -DENABLE_TESTING=ON -DENABLE_UNITTESTS=ON -DENABLE_BONDING=ON
+    - name: build
+      run: cmake --build build -j$(nproc)
+    - name: test
+      run: ctest --test-dir build --output-on-failure

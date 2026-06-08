@@ -19,6 +19,18 @@ Provides `libsrt` at compile time to `ceracoder` and `srtla`. `irl-srt-server` u
 
 Standard CMake. Consumed as a submodule by `ceracoder` and `srtla` — do not build standalone unless testing.
 
+## TEST (ctest)
+
+The GoogleTest unit + bonding suite is gated on `ENABLE_UNITTESTS` (with `ENABLE_CXX11`, ON by default); `ENABLE_TESTING` additionally builds the developer test apps. Both are OFF by default. Run the full suite with:
+
+```bash
+cmake -B build -DENABLE_TESTING=ON -DENABLE_UNITTESTS=ON -DENABLE_BONDING=ON
+cmake --build build -j$(nproc)
+ctest --test-dir build --output-on-failure
+```
+
+Baseline: **286/286 passed** (1 disabled: `CTimer.SleeptoAccuracy`). CI runs this via `.github/workflows/ctest.yaml`. Note: `ENABLE_TESTING=ON` alone registers no ctest tests — `ENABLE_UNITTESTS=ON` is what wires the gtest suite into ctest.
+
 ## WHERE TO LOOK
 
 | Need | Location |
