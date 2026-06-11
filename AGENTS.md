@@ -6,7 +6,7 @@ Parent: [`../AGENTS.md`](../AGENTS.md)
 
 CERALIVE fork of [Haivision SRT](https://github.com/Haivision/srt) with BELABOX patches. VENDORED upstream — minimal modifications only.
 
-Provides `libsrt` at compile time to `ceracoder` and `srtla`. `irl-srt-server` uses system libsrt (deployment-dependent version).
+Provides `libsrt` at compile time to `cerastream` and `srtla`. `irl-srt-server` uses system libsrt (deployment-dependent version).
 
 ## CAUTION: UPSTREAM CODE
 
@@ -17,7 +17,7 @@ Provides `libsrt` at compile time to `ceracoder` and `srtla`. `irl-srt-server` u
 
 ## BUILD
 
-Standard CMake. Consumed as a submodule by `ceracoder` and `srtla` — do not build standalone unless testing.
+Standard CMake. Consumed by `cerastream` (libsrt FFI link) and `srtla` — do not build standalone unless testing.
 
 ## TEST (ctest)
 
