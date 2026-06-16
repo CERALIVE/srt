@@ -9,10 +9,8 @@
 </p>
 
 [![License: MPLv2.0][license-badge]](./LICENSE)
-[![Latest release][release-badge]][github releases]
-[![codecov][codecov-badge]][codecov-project]
-[![Build Status Linux and macOS][travis-badge]][travis]
-[![Build Status Windows][appveyor-badge]][appveyor]
+
+> **Note:** This is a vendored fork of [Haivision/srt](https://github.com/Haivision/srt). Upstream CI badges have been removed per the badge-accuracy policy.
 
 [![Ubuntu 23.04][Ubuntu-badge]][Ubuntu-package]
 [![Fedora 37][fedora-badge]][fedora-package]
@@ -213,10 +211,6 @@ By contributing code to the SRT project, you agree to license your contribution 
 [^1]: The term “live streaming” refers to continuous data transmission (MPEG-TS or equivalent) with latency management. Live streaming based on segmentation and transmission of files like in the HTTP Live Streaming (HLS) protocol (as described in RFC8216) is not part of this use case. File transmission in either message or buffer mode should be considered in this case. See [Section 7. Best Practices and Configuration Tips for Data Transmission via SRT](https://datatracker.ietf.org/doc/html/draft-sharabayko-srt-01#section-7) of the Internet Draft for details. Note that SRT is content agnostic, meaning that any type of data can be transmitted via its payload.
 
 
-[appveyor-badge]: https://img.shields.io/appveyor/ci/Haivision/srt/master.svg?label=Windows
-[appveyor]: https://ci.appveyor.com/project/Haivision/srt
-[travis-badge]: https://img.shields.io/travis/Haivision/srt/master.svg?label=Linux/macOS
-[travis]: https://travis-ci.org/Haivision/srt
 [license-badge]: https://img.shields.io/badge/License-MPLv2.0-blue
 
 [Vcpkg-package]: https://repology.org/project/srt/versions
@@ -224,12 +218,6 @@ By contributing code to the SRT project, you agree to license your contribution 
 
 [ConanCenter-package]: https://conan.io/center/recipes/srt
 [ConanCenter-badge]: https://img.shields.io/conan/v/srt
-
-[codecov-project]: https://codecov.io/gh/haivision/srt
-[codecov-badge]: https://codecov.io/gh/haivision/srt/branch/master/graph/badge.svg
-
-[github releases]: https://github.com/Haivision/srt/releases
-[release-badge]: https://img.shields.io/github/release/Haivision/srt.svg
 
 [debian-badge]: https://badges.debian.net/badges/debian/testing/libsrt1.5-gnutls/version.svg
 [debian-package]: https://packages.debian.org/testing/libs/libsrt1.5-gnutls
