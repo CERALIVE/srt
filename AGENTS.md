@@ -43,6 +43,25 @@ If you need to update the libsrt version consumed by `cerastream` or `srtla`, up
 the `srt` `pin:` in `versions.yaml` and re-vendor the source — do not open PRs
 against this repo's C source.
 
+## COMMON TASKS
+
+Task-routing for the handful of legitimate CeraLive operations on this vendored
+repo. Anything not listed is upstream Haivision work and out of scope (see SCOPE
+BOUNDARY).
+
+| I need to… | Do this |
+|------------|---------|
+| Bump the libsrt version `cerastream`/`srtla` link against | Edit the `srt` `pin:` in `../versions.yaml` and re-vendor — NOT a PR here |
+| Build the library to test it standalone | [BUILD](#build) — `cmake -B build …` |
+| Run the unit + bonding test suite | [TEST (ctest)](#test-ctest) — baseline **286/286** (1 disabled) |
+| Find the source / build config / options | [WHERE TO LOOK](#where-to-look) |
+| Update routing/build/test guidance (the one in-scope edit) | Edit this `AGENTS.md` only |
+| Confirm `srt` is NOT a `.deb` / not in `REPOS` | [ROLE IN THE GROUP](#role-in-the-group); runtime libsrt is system `libsrt1.5-openssl` |
+
+There is **no CI** for this fork (intentional — see UPSTREAM-FORK RELATIONSHIP), so
+the build/test commands below are the only gate; run them locally when validating a
+re-vendor.
+
 ## BUILD
 
 Standard CMake. Consumed by `cerastream` and `srtla` as a sibling checkout at
