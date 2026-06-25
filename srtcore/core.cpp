@@ -186,6 +186,7 @@ struct SrtOptionAction
         flags[SRTO_VERSION]            = SRTO_R_PRE;
         flags[SRTO_CONNTIMEO]          = SRTO_R_PRE;
         flags[SRTO_LOSSMAXTTL]         = SRTO_POST_SPEC;
+        flags[SRTO_REORDERFREEZE]      = SRTO_R_PRE;
         flags[SRTO_RCVLATENCY]         = SRTO_R_PRE;
         flags[SRTO_PEERLATENCY]        = SRTO_R_PRE;
         flags[SRTO_MINVERSION]         = SRTO_R_PRE;
@@ -872,6 +873,11 @@ void srt::CUDT::getOpt(SRT_SOCKOPT optName, void *optval, int &optlen)
 
     case SRTO_NAKREPORT:
         *(bool *)optval = m_config.bRcvNakReport;
+        optlen          = sizeof(bool);
+        break;
+
+    case SRTO_REORDERFREEZE:
+        *(bool *)optval = m_config.bReorderFreeze;
         optlen          = sizeof(bool);
         break;
 
@@ -11255,7 +11261,7 @@ int srt::CUDT::processData(CUnit* in_unit)
     if (m_bPeerRexmitFlag && was_sent_in_order)
     {
         ++m_iConsecOrderedDelivery;
-        if (m_iConsecOrderedDelivery >= 50)
+        if (!m_config.bReorderFreeze && m_iConsecOrderedDelivery >= 50) // CERALIVE reorder-freeze
         {
             m_iConsecOrderedDelivery = 0;
             if (m_iReorderTolerance > 0)
@@ -11418,7 +11424,7 @@ void srt::CUDT::unlose(const CPacket &packet)
             HLOGC(qrlog.Debug, log << "... arrived at TTL " << had_ttl << " case " << m_iConsecEarlyDelivery);
 
             // After 10 consecutive
-            if (m_iConsecEarlyDelivery >= 10)
+            if (!m_config.bReorderFreeze && m_iConsecEarlyDelivery >= 10) // CERALIVE reorder-freeze
             {
                 m_iConsecEarlyDelivery = 0;
                 if (m_iReorderTolerance > 0)

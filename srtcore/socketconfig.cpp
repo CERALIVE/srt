@@ -560,6 +560,15 @@ struct CSrtConfigSetter<SRTO_LOSSMAXTTL>
 };
 
 template<>
+struct CSrtConfigSetter<SRTO_REORDERFREEZE>
+{
+    static void set(CSrtConfig& co, const void* optval, int optlen)
+    {
+        co.bReorderFreeze = cast_optval<bool>(optval, optlen);
+    }
+};
+
+template<>
 struct CSrtConfigSetter<SRTO_MINVERSION>
 {
     static void set(CSrtConfig& co, const void* optval, int optlen)
@@ -962,6 +971,7 @@ int dispatchSet(SRT_SOCKOPT optName, CSrtConfig& co, const void* optval, int opt
         DISPATCH(SRTO_CONNTIMEO);
         DISPATCH(SRTO_DRIFTTRACER);
         DISPATCH(SRTO_LOSSMAXTTL);
+        DISPATCH(SRTO_REORDERFREEZE);
         DISPATCH(SRTO_MINVERSION);
         DISPATCH(SRTO_STREAMID);
         DISPATCH(SRTO_CONGESTION);

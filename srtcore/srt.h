@@ -238,6 +238,11 @@ typedef enum SRT_SOCKOPT {
    SRTO_MAXREXMITBW = 63,    // Maximum bandwidth limit for retransmision (Bytes/s)
 #endif
 
+   // CERALIVE reorder-freeze: receiver-side opt-in to freeze the dynamic
+   // reorder-tolerance decay (decoupled from SRTO_NAKREPORT). Appended HIGH to
+   // avoid colliding with future upstream option numbers; never gap-fill.
+   SRTO_REORDERFREEZE = 120,
+
    SRTO_E_SIZE // Always last element, not a valid option.
 } SRT_SOCKOPT;
 

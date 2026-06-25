@@ -267,6 +267,7 @@ struct CSrtConfig: CSrtMuxerConfig
     int  iOverheadBW;          // Percent above input stream rate (applies if llMaxBW == 0)
     bool bRcvNakReport;        // Enable Receiver Periodic NAK Reports
     int  iMaxReorderTolerance; //< Maximum allowed value for dynamic reorder tolerance
+    bool bReorderFreeze;       // CERALIVE reorder-freeze: freeze reorder-tolerance decay (receiver-side opt-in)
 
     // For the use of CCryptoControl
     // HaiCrypt configuration
@@ -321,6 +322,7 @@ struct CSrtConfig: CSrtMuxerConfig
         , iOverheadBW(SRT_OHEAD_DEFAULT_P100)
         , bRcvNakReport(true)
         , iMaxReorderTolerance(0) // Sensible optimal value is 10, 0 preserves old behavior
+        , bReorderFreeze(false)   // Opt-in; default preserves stock adaptive decay
         , uKmRefreshRatePkt(0)
         , uKmPreAnnouncePkt(0)
         , uSrtVersion(SRT_DEF_VERSION)

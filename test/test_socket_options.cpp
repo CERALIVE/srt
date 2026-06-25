@@ -989,6 +989,114 @@ TEST_F(TestSocketOptions, LossMaxTTL)
     ASSERT_NE(srt_close(accepted_sock), SRT_ERROR);
 }
 
+// Drives a clean, in-order packet stream caller->accepted so the receiver's
+// reorder-tolerance decay path (CUDT::processData, the >= 50 ordered-delivery
+// site) executes on real traffic. A background drainer keeps the receive buffer
+// clear; the decay itself runs in the receiver worker thread on packet arrival.
+static void DriveOrderedStream(SRTSOCKET caller, SRTSOCKET accepted, int num_pkts)
+{
+    const int rcv_timeo = 500;
+    const int snd_timeo = 3000;
+    ASSERT_EQ(srt_setsockopt(accepted, 0, SRTO_RCVTIMEO, &rcv_timeo, sizeof rcv_timeo), SRT_SUCCESS);
+    ASSERT_EQ(srt_setsockopt(caller,   0, SRTO_SNDTIMEO, &snd_timeo, sizeof snd_timeo), SRT_SUCCESS);
+
+    int received = 0;
+    std::thread drainer([&] {
+        std::vector<char> buf(1500);
+        for (;;)
+        {
+            const int n = srt_recvmsg(accepted, buf.data(), (int) buf.size());
+            if (n <= 0)
+                break; // recv times out once the sender stops feeding the stream
+            if (++received >= num_pkts)
+                break;
+        }
+    });
+
+    std::vector<char> payload(1316, 'C');
+    for (int i = 0; i < num_pkts; ++i)
+    {
+        if (srt_sendmsg(caller, payload.data(), (int) payload.size(), -1, true) <= 0)
+            break;
+    }
+
+    drainer.join();
+    this_thread::sleep_for(chrono::milliseconds(200));
+}
+
+// SRTO_REORDERFREEZE on: the dynamic reorder-tolerance decay is frozen, so a long
+// in-order stream leaves pktReorderTolerance pinned at its max. The independently
+// set SRTO_NAKREPORT keeps its value, proving the two options are decoupled, and
+// both propagate from the listener to the accepted socket.
+TEST_F(TestSocketOptions, ReorderFreezeFreezesDecay)
+{
+    const int  loss_max_ttl = 5;
+    const bool freeze_on    = true;
+    const bool nak_off      = false; // non-default (SRTO_NAKREPORT defaults to true)
+
+    ASSERT_EQ(srt_setsockopt(m_listen_sock, 0, SRTO_LOSSMAXTTL,    &loss_max_ttl, sizeof loss_max_ttl), SRT_SUCCESS);
+    ASSERT_EQ(srt_setsockopt(m_listen_sock, 0, SRTO_REORDERFREEZE, &freeze_on,    sizeof freeze_on),    SRT_SUCCESS);
+    ASSERT_EQ(srt_setsockopt(m_listen_sock, 0, SRTO_NAKREPORT,     &nak_off,      sizeof nak_off),      SRT_SUCCESS);
+
+    StartListener();
+    const SRTSOCKET accepted_sock = EstablishConnection();
+
+    bool bval = false;
+    int  blen = (int) sizeof bval;
+    ASSERT_EQ(srt_getsockopt(accepted_sock, 0, SRTO_REORDERFREEZE, &bval, &blen), SRT_SUCCESS);
+    EXPECT_TRUE(bval) << "SRTO_REORDERFREEZE did not propagate to the accepted socket";
+    EXPECT_EQ(blen, (int) sizeof(bool));
+
+    blen = (int) sizeof bval;
+    ASSERT_EQ(srt_getsockopt(accepted_sock, 0, SRTO_NAKREPORT, &bval, &blen), SRT_SUCCESS);
+    EXPECT_FALSE(bval) << "SRTO_NAKREPORT must keep its own value (decoupled from freeze)";
+
+    int ival = 0;
+    int ilen = (int) sizeof ival;
+    ASSERT_EQ(srt_getsockopt(accepted_sock, 0, SRTO_LOSSMAXTTL, &ival, &ilen), SRT_SUCCESS);
+    EXPECT_EQ(ival, loss_max_ttl);
+
+    DriveOrderedStream(m_caller_sock, accepted_sock, 1000);
+
+    SRT_TRACEBSTATS stats;
+    ASSERT_EQ(srt_bstats(accepted_sock, &stats, 0), SRT_SUCCESS);
+    EXPECT_EQ(stats.pktReorderTolerance, loss_max_ttl)
+        << "With freeze ON the reorder tolerance must not decay";
+
+    // Freeze did not touch NAKREPORT even after a full stream.
+    blen = (int) sizeof bval;
+    ASSERT_EQ(srt_getsockopt(accepted_sock, 0, SRTO_NAKREPORT, &bval, &blen), SRT_SUCCESS);
+    EXPECT_FALSE(bval);
+
+    ASSERT_NE(srt_close(accepted_sock), SRT_ERROR);
+}
+
+// SRTO_REORDERFREEZE off (default): the option is opt-in, so stock adaptive decay
+// still runs and a long in-order stream drives pktReorderTolerance below its max.
+TEST_F(TestSocketOptions, ReorderFreezeDefaultDecays)
+{
+    // Default is off on a fresh socket (truly opt-in).
+    bool bval = true;
+    int  blen = (int) sizeof bval;
+    ASSERT_EQ(srt_getsockopt(m_caller_sock, 0, SRTO_REORDERFREEZE, &bval, &blen), SRT_SUCCESS);
+    EXPECT_FALSE(bval) << "SRTO_REORDERFREEZE must default to off";
+
+    const int loss_max_ttl = 5;
+    ASSERT_EQ(srt_setsockopt(m_listen_sock, 0, SRTO_LOSSMAXTTL, &loss_max_ttl, sizeof loss_max_ttl), SRT_SUCCESS);
+
+    StartListener();
+    const SRTSOCKET accepted_sock = EstablishConnection();
+
+    DriveOrderedStream(m_caller_sock, accepted_sock, 1000);
+
+    SRT_TRACEBSTATS stats;
+    ASSERT_EQ(srt_bstats(accepted_sock, &stats, 0), SRT_SUCCESS);
+    EXPECT_LT(stats.pktReorderTolerance, loss_max_ttl)
+        << "With freeze OFF the stock reorder-tolerance decay must still occur";
+
+    ASSERT_NE(srt_close(accepted_sock), SRT_ERROR);
+}
+
 
 // Try to set/get SRTO_MININPUTBW with wrong optlen
 TEST_F(TestSocketOptions, MinInputBWWrongLen)
