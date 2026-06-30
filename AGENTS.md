@@ -109,7 +109,7 @@ Canonical decision record: [`docs/RECEIVER-RECONCILIATION.md`](../docs/RECEIVER-
 
 **Baseline patch status confirmed (Task 3, ADR-002 "C is SAFE"):** `SRTO_REORDERFREEZE`
 is the only CERALIVE patch on `reorderfreeze-1.5.5`. No additional libsrt patch is
-needed for BellaBox-parity baseline. The stock-libsrt substitution (`nakreport=0` +
+needed for BELABOX-parity baseline. The stock-libsrt substitution (`nakreport=0` +
 `lossmaxttl=40`) is authorized by ADR-002 as a safe equivalent.
 
 **Device-side FEC packet-filter — NOT compiled; deferred.** `SRTO_PACKETFILTER` /
