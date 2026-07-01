@@ -52,3 +52,6 @@ tags
 
 # OpenCode agent state (local only)
 .omo/
+
+# Local test artifacts (repo-local evidence; never tracked)
+test-results/
