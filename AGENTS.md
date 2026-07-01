@@ -77,6 +77,57 @@ BOUNDARY). To bump the libsrt version consumed by `cerastream`/`srtla`, update t
 `srt` `pin:` in `versions.yaml` and re-vendor — do not open PRs against upstream C
 source for unrelated features.
 
+## BASELINE PATCH STATUS (ADR-002 "C is SAFE")
+
+**`SRTO_REORDERFREEZE` is the only CERALIVE patch** on the `reorderfreeze-1.5.5`
+branch. No other functional changes exist in the C/C++ source relative to upstream
+Haivision `1e4c908` (v1.5.5 + upstream security/bug fixes).
+
+ADR-002 verdict: **"C is SAFE"** — the C `srtla_rec` receiver is safe to keep
+without any additional libsrt patch for baseline parity. No new patch is needed.
+
+### Device-side FEC packet-filter — compiled-in by default; catalog deferred
+
+`SRTO_PACKETFILTER` (the SRT packet-filter API that enables Forward Error
+Correction) **is compiled-in by default** in all libsrt builds, including the
+CERALIVE fork. The FEC plugin is an upstream feature; `srtcore/filelist.maf`
+lists `fec.cpp` and `packetfilter.cpp` unconditionally. There is no
+`-DENABLE_PACKET_FILTER=ON` CMake flag in libsrt — the packet-filter API is
+always present.
+
+**Deferral rationale:** The operator-facing receiver-capability catalog (which
+lists available FEC mixtures) is deferred until a FEC mixture is being actively
+evaluated for gain (gain-hunt track). There is no current evidence that FEC
+overhead would improve the bonded-SRTLA path — ARQ already handles loss recovery
+on the bonded links. When a FEC gain-hunt is initiated, the correct approach is
+to evaluate FEC vs ARQ tradeoffs on the actual bonded path before committing a
+mixture to the operator catalog.
+
+**Evidence:** Empirical probe (`srtla/test-results/fec-capability-probe.json`,
+Task A1) confirms FEC is compiled-in: system libsrt (83 FEC symbols, runtime
+`srt_setsockopt(SRTO_PACKETFILTER,"fec")==0` OK), vanilla Haivision v1.5.5 (83
+symbols, OK), CERALIVE patched (84 symbols, OK). The real deferral lever is the
+operator-facing catalog, not a compile flag.
+
+## RECEIVER CAPABILITY RECONCILIATION
+
+Canonical decision record: [`docs/RECEIVER-RECONCILIATION.md`](../docs/RECEIVER-RECONCILIATION.md)
+
+**Baseline patch status confirmed (Task 3, ADR-002 "C is SAFE"):** `SRTO_REORDERFREEZE`
+is the only CERALIVE patch on `reorderfreeze-1.5.5`. No additional libsrt patch is
+needed for BELABOX-parity baseline. The stock-libsrt substitution (`nakreport=0` +
+`lossmaxttl=40`) is authorized by ADR-002 as a safe equivalent.
+
+**Device-side FEC packet-filter — compiled-in by default; catalog deferred.**
+`SRTO_PACKETFILTER` is compiled-in by default in all libsrt builds (no
+`-DENABLE_PACKET_FILTER=ON` flag exists in libsrt CMake). The operator-facing
+receiver-capability catalog (which lists available FEC mixtures) is deferred until
+a FEC mixture is actively being evaluated for gain (gain-hunt track). There is no
+current evidence that FEC overhead improves the bonded-SRTLA path. The catalog
+remains empty until gain-hunt evidence passes the pre-registered decision gate.
+
+Cross-ref: [`srtla/docs/adr/ADR-002-srt-patch-necessity.md`](../srtla/docs/adr/ADR-002-srt-patch-necessity.md)
+
 ## SCOPE BOUNDARY
 
 **No unsanctioned first-party feature work here.** The internals of this repo are
