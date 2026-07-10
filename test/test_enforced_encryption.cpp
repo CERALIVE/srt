@@ -14,6 +14,8 @@
 #include <condition_variable> 
 #include <mutex>
 #include <gtest/gtest.h>
+
+#include <array>
 #include "test_env.h"
 
 #include "srt.h"
@@ -86,7 +88,7 @@ template<typename TResult>
 struct TestCase
 {
     bool                enforcedenc [PEER_COUNT];
-    const std::string  (&password)[PEER_COUNT];
+    std::array<std::string, PEER_COUNT> password;
     TResult             expected_result;
 };
 
@@ -786,4 +788,3 @@ CREATE_TEST_CASES(CASE_D_3, Enforced_Off_Off_Pwd_Set_None)
 CREATE_TEST_CASES(CASE_D_4, Enforced_Off_Off_Pwd_None_Set)
 #endif
 CREATE_TEST_CASES(CASE_D_5, Enforced_Off_Off_Pwd_None_None)
-
