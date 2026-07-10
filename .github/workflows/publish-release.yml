@@ -94,4 +94,4 @@ jobs:
           repository: CERALIVE/apt-worker
           event-type: apt-reindex
           client-payload: >-
-            {"component":"srt","repo":"srt","channel":"stable","tag":"srt-v${{ inputs.version }}","version":"${{ inputs.version }}"}
+            {"component":"libsrt1.5-ceralive","repo":"srt","channel":"stable","tag":"srt-v${{ inputs.version }}","version":"${{ inputs.version }}"}
