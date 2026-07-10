@@ -41,14 +41,8 @@ jobs:
         abi-dumper libsrt.so -o libsrt-pr.dump -public-headers installdir/usr/local/include/srt/ -lver "$SRT_TAG"
         ls -ld libsrt-pr.dump
         sha256sum libsrt-pr.dump
-        SRT_BASE=v$(../scripts/get-build-version.tcl base)
-        if [[ $SRT_TAG_VERSION == "$SRT_BASE" ]]; then
-            echo "NOT CHECKING ABI: base version is being built: $SRT_TAG  (not emitting SRT_BASE)"
-            #echo "SRT_BASE=''" >> "$GITHUB_OUTPUT"
-        else
-            echo "WILL CHECK ABI changes $SRT_BASE - $SRT_TAG_VERSION"
-            echo "SRT_BASE=$SRT_BASE" >> "$GITHUB_OUTPUT"
-        fi
+        echo "WILL CHECK ABI changes ${SRT_BASE} - ${SRT_TAG_VERSION}"
+        echo "SRT_BASE=${SRT_BASE}" >> "$GITHUB_OUTPUT"
     - id: upload_pr_dump
       uses: actions/upload-artifact@v7
       with:
