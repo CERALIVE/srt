@@ -48,6 +48,9 @@ compile_commands.json
 .idea/
 cmake-build-debug/
 build/
+build-deb-*/
+stage-deb-*/
+dist/
 tags
 
 # OpenCode agent state (local only)

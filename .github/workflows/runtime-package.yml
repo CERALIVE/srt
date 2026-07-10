@@ -1,0 +1,50 @@
+name: CeraLive SRT Runtime
+
+on:
+  push:
+    branches: [master, 'release/**']
+    paths:
+      - 'packaging/**'
+      - 'CMakeLists.txt'
+      - 'srtcore/**'
+      - '.github/workflows/runtime-package.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'packaging/**'
+      - 'CMakeLists.txt'
+      - 'srtcore/**'
+      - '.github/workflows/runtime-package.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ccache
+          key: srt-runtime-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'srtcore/**', 'packaging/**') }}
+          restore-keys: srt-runtime-${{ runner.os }}-
+      - name: Build and verify the runtime package
+        run: |
+          docker run --rm \
+            -v "$PWD":/src \
+            -v "$HOME/.cache/ccache":/root/.cache/ccache \
+            -w /src \
+            debian:bookworm \
+            bash -lc '
+              apt-get update -qq
+              DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
+                build-essential ccache cmake dpkg-dev libgnutls28-dev pkg-config
+              CC="ccache gcc" CXX="ccache g++" packaging/build-deb.sh
+              packaging/package-contract.sh
+              packaging/verify-runtime-replacement.sh dist/libsrt1.5-ceralive_1.5.5+ceralive.1_amd64.deb
+            '

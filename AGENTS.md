@@ -4,21 +4,20 @@ Parent: [`../AGENTS.md`](../AGENTS.md)
 
 ## ROLE IN THE GROUP
 
-`srt` is a **build-time vendored libsrt source** — a CERALIVE fork of
-[Haivision/srt](https://github.com/Haivision/srt).
+`srt` is the CeraLive runtime fork of [Haivision/srt](https://github.com/Haivision/srt).
 
 - **SONAME:** `libsrt.so.1.5`
-- **Consumers at compile time:** `cerastream` (libsrt FFI link) and `srtla`
-- **NOT a `.deb`.** NOT in `REPOS`. Reclassified 2026-06-16 from a prior
-  (never-implemented) first-party `.deb` claim.
-- **Runtime libsrt on device:** the system package `libsrt1.5-openssl` from
-  Debian bookworm `main` — installed by the image runtime OS layer. There is no
-  CERALIVE libsrt fork `.deb`. `cerastream` declares `Depends: libsrt1.5-openssl`
-  directly; this vendored source is build-time only.
+- **Runtime package:** `libsrt1.5-ceralive` for arm64 and amd64, built by
+  `packaging/build-deb.sh` with the GnuTLS backend.
+- **Device use:** image-building-pipeline stages it from apt.ceralive.tv and
+  installs it before `cerastream`. It replaces the Debian GnuTLS/OpenSSL flavors
+  and provides their virtual package names; GStreamer and cerastream resolve one
+  CeraLive `libsrt.so.1.5` ABI in each process.
+- **Consumers:** `cerastream` (direct FFI) and GStreamer runtime components.
 - `irl-srt-server` uses system libsrt (deployment-dependent version), not this fork.
 
-Cross-check: `versions.yaml` entry `srt` — `kind: vendored-transport-src`, no
-`arch`/`depends`/`provides` keys, `pin: latest`.
+Cross-check: root `versions.yaml` entry `srt`, image
+`v2/lib/fetch-debs.sh`, and `cerastream` packaging must all name the same release.
 
 ## UPSTREAM-FORK RELATIONSHIP
 
@@ -29,7 +28,8 @@ marked as CERALIVE additions.
 - Remote: `origin https://github.com/CERALIVE/srt` — do NOT add a remote pointing
   at `Haivision/srt` or any other fork parent (Rule C). Upstream commits are
   fetched transiently by SHA, never via a retained remote.
-- No CERALIVE CI badge: no CI workflow exists for this vendored fork. Do not add one.
+- `runtime-package.yml` validates the Debian artifact and its real GStreamer
+  replacement behavior on every packaging/source PR.
 - No `.github/dependabot.yml`: adding it would churn upstream's action pins and is
   out of scope for a vendored build-time source.
 
@@ -130,9 +130,8 @@ Cross-ref: [`srtla/docs/adr/ADR-002-srt-patch-necessity.md`](../srtla/docs/adr/A
 
 ## SCOPE BOUNDARY
 
-**No unsanctioned first-party feature work here.** The internals of this repo are
-otherwise out of scope for CeraLive development. In-scope edits are limited to
-`AGENTS.md` and the explicitly-sanctioned `SRTO_REORDERFREEZE` patch above.
+**No unsanctioned C/C++ feature work here.** Packaging, release automation, and
+documentation changes are in scope when they preserve the runtime ABI contract.
 
 ## COMMON TASKS
 
@@ -142,17 +141,17 @@ BOUNDARY).
 
 | I need to… | Do this |
 |------------|---------|
-| Bump the libsrt version `cerastream`/`srtla` link against | Edit the `srt` `pin:` in `../versions.yaml` and re-vendor — NOT a PR here |
+| Build the device runtime package | `packaging/build-deb.sh` (outputs `dist/libsrt1.5-ceralive_*.deb`) |
+| Verify replacement behavior | `packaging/verify-runtime-replacement.sh <deb>` |
 | Build the library to test it standalone | [BUILD](#build) — `cmake -B build …` |
 | Run the unit + bonding test suite | [TEST (ctest)](#test-ctest) |
 | Find the source / build config / options | [WHERE TO LOOK](#where-to-look) |
 | Touch the reorder-freeze option | See [SANCTIONED CERALIVE PATCH](#sanctioned-ceralive-patch--srto_reorderfreeze) — keep it decay-disable-only and decoupled from NAK |
 | Update routing/build/test guidance | Edit this `AGENTS.md` |
-| Confirm `srt` is NOT a `.deb` / not in `REPOS` | [ROLE IN THE GROUP](#role-in-the-group); runtime libsrt is system `libsrt1.5-openssl` |
+| Confirm the runtime contract | [ROLE IN THE GROUP](#role-in-the-group); the device uses `libsrt1.5-ceralive` |
 
-There is **no CI** for this fork (intentional — see UPSTREAM-FORK RELATIONSHIP), so
-the build/test commands below are the only gate; run them locally when validating a
-re-vendor or a change to the sanctioned patch.
+`runtime-package.yml` runs the package contract and GStreamer replacement gate. Run
+the commands below locally before changing the fork or its package recipe.
 
 ## BUILD
 
