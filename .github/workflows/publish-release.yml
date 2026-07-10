@@ -1,0 +1,97 @@
+name: Publish CeraLive SRT Runtime
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Debian package version
+        required: true
+        default: 1.5.5+ceralive.1
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake dpkg-dev libgnutls28-dev pkg-config
+      - name: Build and test
+        run: |
+          cmake -S . -B build -DENABLE_TESTING=ON -DENABLE_UNITTESTS=ON -DENABLE_BONDING=ON
+          cmake --build build --parallel
+          ctest --test-dir build --output-on-failure
+      - name: Build Debian runtime package
+        env:
+          CERALIVE_SRT_VERSION: ${{ inputs.version }}
+          DEB_ARCH: ${{ matrix.arch }}
+        run: |
+          docker run --rm \
+            -e CERALIVE_SRT_VERSION \
+            -e DEB_ARCH \
+            -v "$PWD":/src \
+            -w /src \
+            debian:bookworm \
+            bash -lc '
+              apt-get update -qq
+              DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
+                build-essential cmake dpkg-dev libgnutls28-dev pkg-config
+              packaging/build-deb.sh
+            '
+      - name: Verify package contract
+        env:
+          CERALIVE_SRT_VERSION: ${{ inputs.version }}
+          DEB_ARCH: ${{ matrix.arch }}
+        run: |
+          deb="dist/libsrt1.5-ceralive_${CERALIVE_SRT_VERSION}_${DEB_ARCH}.deb"
+          dpkg-deb -I "${deb}"
+          tmp="$(mktemp -d)"
+          dpkg-deb -x "${deb}" "${tmp}"
+          test -L "${tmp}/usr/lib/$(dpkg-architecture -a "${DEB_ARCH}" -qDEB_HOST_MULTIARCH)/libsrt-gnutls.so.1.5"
+          rm -rf "${tmp}"
+      - name: Verify GStreamer runtime replacement
+        if: matrix.arch == 'amd64'
+        env:
+          CERALIVE_SRT_VERSION: ${{ inputs.version }}
+          DEB_ARCH: ${{ matrix.arch }}
+        run: packaging/verify-runtime-replacement.sh "dist/libsrt1.5-ceralive_${CERALIVE_SRT_VERSION}_${DEB_ARCH}.deb"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: libsrt1.5-ceralive-${{ matrix.arch }}
+          path: dist/*.deb
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+      - uses: softprops/action-gh-release@v3
+        with:
+          tag_name: srt-v${{ inputs.version }}
+          name: CeraLive SRT ${{ inputs.version }}
+          files: dist/**/*.deb
+      - uses: peter-evans/repository-dispatch@v4
+        with:
+          token: ${{ secrets.CERALIVE_DISPATCH_TOKEN }}
+          repository: CERALIVE/apt-worker
+          event-type: apt-reindex
+          client-payload: >-
+            {"component":"srt","repo":"srt","channel":"stable","tag":"srt-v${{ inputs.version }}","version":"${{ inputs.version }}"}

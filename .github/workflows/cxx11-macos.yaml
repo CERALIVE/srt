@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [ "master", "dev" ]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: macos
@@ -16,11 +23,12 @@ jobs:
       run: |
         brew tap-new Haivision/gt-local
         brew extract --version=1.12.1 --force googletest Haivision/gt-local
+        brew trust --formula Haivision/gt-local/googletest@1.12.1
         brew install googletest@1.12.1
         # NOTE: 1.12.1 is the last version that requires C++11; might need update later
         # curl -o googletest.rb https://raw.githubusercontent.com/Homebrew/homebrew-core/23e7fb4dc0cc73facc3772815741e1deb87d6406/Formula/googletest.rb
         # brew install -s googletest.rb
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
     - name: configure
       run: |
         mkdir _build && cd _build
