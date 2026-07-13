@@ -190,26 +190,23 @@ UniqueSocket::~UniqueSocket()
 
 void UniqueSocket::close()
 {
-    int close_result = srt_close(sock);
-    int close_error = srt_getlasterror(nullptr);
+    if (sock == SRT_INVALID_SOCK)
+        return;
 
-    // XXX SRT_EINVSOCK is reported when the socket
-    // has been already wiped out, which may happen to a broken socket.
-    // This isn't exactly intended, although trying to close a nonexistent
-    // socket is not a problem, as long as it happens before the id value rollover
-    // (that is, when it's closed immediately after getting broken).
-    // This solution is still slick though and should be fixed.
-    //
-    // Restore this, when fixed
-    // EXPECT_NE(srt_close(sock), SRT_ERROR) << lab << " CREATED: "<< f << ":" << l;
-    if (close_result == SRT_ERROR)
-    {
-        EXPECT_NE(close_error, SRT_EINVSOCK) << lab << " CREATED: "<< f << ":" << l;
-    }
-    else
-    {
-        EXPECT_EQ(close_result, 0) << lab << " CREATED: "<< f << ":" << l;
-    }
+    const int32_t closing_sock = sock;
+    sock                       = SRT_INVALID_SOCK;
+
+    EXPECT_EQ(srt_close(closing_sock), SRT_SUCCESS)
+        << lab << " CREATED: " << f << ":" << l << ": " << srt_getlasterror_str();
 }
 
+TEST(UniqueSocket, ExplicitCloseReleasesOwnership)
+{
+    TestInit srtinit;
+    MAKE_UNIQUE_SOCK(sock, "explicit close", srt_create_socket());
+
+    sock.close();
+
+    EXPECT_EQ(SRT_INVALID_SOCK, sock.ref()) << "an explicitly closed socket must no longer be owned";
+}
 }
