@@ -153,6 +153,32 @@ BOUNDARY).
 `runtime-package.yml` runs the package contract and GStreamer replacement gate. Run
 the commands below locally before changing the fork or its package recipe.
 
+## CI COMPILER-CACHE COVERAGE
+
+Every GitHub Actions workflow that performs an ordinary C/C++ build restores a
+source-aware ccache archive through `actions/cache/restore@v6` before
+compilation. Keys separate the workflow purpose, host OS/architecture, and
+relevant matrix dimensions; each has a same-surface restore prefix. Successful
+non-PR runs persist the bounded archive through `actions/cache/save@v6`; PRs are
+restore-only so untrusted code cannot seed executable compiler output. Every
+cache is capped at 200 MB, and CMake is wired through
+`CMAKE_C_COMPILER_LAUNCHER=ccache` and
+`CMAKE_CXX_COMPILER_LAUNCHER=ccache`.
+
+| Workflow | Coverage |
+|----------|----------|
+| `runtime-package.yml` | Existing Docker-mounted ccache, normalized to the shared key/size/launcher contract |
+| `publish-release.yml` | Host test build and Docker package build share the restored per-architecture cache |
+| `abi.yml` | Separate current/base caches prevent concurrent writers while preserving stable restore prefixes |
+| `cxx03-ubuntu.yaml`, `cxx11-ubuntu.yaml`, `cxx11-macos.yaml` | Native Makefile builds use the CMake launchers |
+| `cxx11-win.yaml` | Uses Ninja with an explicit x64 MSVC developer environment because CMake compiler launchers are supported by Makefile/Ninja generators, not the Visual Studio generator |
+| `android.yaml`, `iOS.yaml`, `s390x-focal.yaml` | Target/matrix-specific cross-build caches; container builds mount a host-restored cache path |
+
+`codeql.yml` is intentionally uncached: its manual C/C++ build must execute and
+trace compiler processes to populate the CodeQL database, while a ccache hit can
+bypass the compiler. `codespell.yml` and the `publish` job in
+`publish-release.yml` do not compile C/C++ and therefore need no compiler cache.
+
 ## BUILD
 
 Standard CMake. Consumed by `cerastream` and `srtla` as a sibling checkout at

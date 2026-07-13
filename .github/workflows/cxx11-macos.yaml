@@ -29,11 +29,33 @@ jobs:
         # curl -o googletest.rb https://raw.githubusercontent.com/Homebrew/homebrew-core/23e7fb4dc0cc73facc3772815741e1deb87d6406/Formula/googletest.rb
         # brew install -s googletest.rb
     - uses: actions/checkout@v7
+    - name: Configure ccache environment
+      run: echo "CCACHE_DIR=$RUNNER_TEMP/ccache" >> "$GITHUB_ENV"
+    - name: Restore ccache
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ runner.temp }}/ccache
+        key: srt-ccache-cxx11-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'cmake_object_lib_support.c', 'apps/**', 'common/**', 'haicrypt/**', 'scripts/**', 'srtcore/**', 'test/**', 'testing/**') }}
+        restore-keys: srt-ccache-cxx11-${{ runner.os }}-${{ runner.arch }}-
+    - name: Set up ccache
+      run: |
+        brew install ccache
+        ccache --max-size=200M
+        ccache --zero-stats
     - name: configure
       run: |
         mkdir _build && cd _build
-        cmake ../ -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DENABLE_STDCXX_SYNC=ON -DENABLE_ENCRYPTION=OFF -DENABLE_UNITTESTS=ON -DENABLE_BONDING=ON -DUSE_CXX_STD=17
+        cmake ../ -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DENABLE_STDCXX_SYNC=ON -DENABLE_ENCRYPTION=OFF -DENABLE_UNITTESTS=ON -DENABLE_BONDING=ON -DUSE_CXX_STD=17
     - name: build
       run: cd _build && cmake --build ./
     - name: test
       run: cd _build && ctest --extra-verbose
+    - name: Save ccache
+      if: ${{ success() && github.event_name != 'pull_request' }}
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ runner.temp }}/ccache
+        key: srt-ccache-cxx11-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'cmake_object_lib_support.c', 'apps/**', 'common/**', 'haicrypt/**', 'scripts/**', 'srtcore/**', 'test/**', 'testing/**') }}
+    - name: Show ccache statistics
+      if: always()
+      run: ccache --show-stats

@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -27,14 +27,24 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
+      - name: Configure ccache environment
+        run: echo "CCACHE_DIR=$RUNNER_TEMP/ccache" >> "$GITHUB_ENV"
+      - name: Restore ccache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: srt-ccache-release-${{ runner.os }}-${{ runner.arch }}-${{ matrix.arch }}-${{ hashFiles('CMakeLists.txt', 'cmake_object_lib_support.c', 'apps/**', 'common/**', 'haicrypt/**', 'packaging/**', 'scripts/**', 'srtcore/**', 'test/**', 'testing/**') }}
+          restore-keys: srt-ccache-release-${{ runner.os }}-${{ runner.arch }}-${{ matrix.arch }}-
       - name: Install build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake dpkg-dev libgnutls28-dev pkg-config
+            build-essential ccache cmake dpkg-dev libgnutls28-dev pkg-config
+          ccache --max-size=200M
+          ccache --zero-stats
       - name: Build and test
         run: |
-          cmake -S . -B build -DENABLE_TESTING=ON -DENABLE_UNITTESTS=ON -DENABLE_BONDING=ON
+          cmake -S . -B build -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DENABLE_TESTING=ON -DENABLE_UNITTESTS=ON -DENABLE_BONDING=ON
           cmake --build build --parallel
           ctest --test-dir build --output-on-failure
       - name: Build Debian runtime package
@@ -42,18 +52,27 @@ jobs:
           CERALIVE_SRT_VERSION: ${{ inputs.version }}
           DEB_ARCH: ${{ matrix.arch }}
         run: |
+          mkdir -p "$CCACHE_DIR"
           docker run --rm \
             -e CERALIVE_SRT_VERSION \
             -e DEB_ARCH \
             -v "$PWD":/src \
+            -v "$CCACHE_DIR":/root/.cache/ccache \
             -w /src \
             debian:bookworm \
             bash -lc '
               apt-get update -qq
               DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
-                build-essential cmake dpkg-dev libgnutls28-dev pkg-config
-              packaging/build-deb.sh
+                build-essential ccache cmake dpkg-dev libgnutls28-dev pkg-config
+              ccache --max-size=200M
+              CMAKE_C_COMPILER_LAUNCHER=ccache \
+                CMAKE_CXX_COMPILER_LAUNCHER=ccache \
+                packaging/build-deb.sh
+              ccache --show-stats
             '
+      - name: Show ccache statistics
+        if: always()
+        run: ccache --show-stats
       - name: Verify package contract
         env:
           CERALIVE_SRT_VERSION: ${{ inputs.version }}
@@ -71,6 +90,12 @@ jobs:
           CERALIVE_SRT_VERSION: ${{ inputs.version }}
           DEB_ARCH: ${{ matrix.arch }}
         run: sudo packaging/verify-runtime-replacement.sh "dist/libsrt1.5-ceralive_${CERALIVE_SRT_VERSION}_${DEB_ARCH}.deb"
+      - name: Save ccache
+        if: ${{ success() && github.event_name != 'pull_request' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: srt-ccache-release-${{ runner.os }}-${{ runner.arch }}-${{ matrix.arch }}-${{ hashFiles('CMakeLists.txt', 'cmake_object_lib_support.c', 'apps/**', 'common/**', 'haicrypt/**', 'packaging/**', 'scripts/**', 'srtcore/**', 'test/**', 'testing/**') }}
       - uses: actions/upload-artifact@v7
         with:
           name: libsrt1.5-ceralive-${{ matrix.arch }}
@@ -79,6 +104,8 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v8
         with:

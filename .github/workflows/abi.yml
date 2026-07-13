@@ -21,12 +21,26 @@ jobs:
     - uses: actions/checkout@v7
       with:
         path: gitview_pr
+    - name: Configure ccache environment
+      run: echo "CCACHE_DIR=$RUNNER_TEMP/ccache" >> "$GITHUB_ENV"
+    - name: Restore ccache
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ runner.temp }}/ccache
+        key: srt-ccache-abi-current-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gitview_pr/CMakeLists.txt', 'gitview_pr/cmake_object_lib_support.c', 'gitview_pr/apps/**', 'gitview_pr/common/**', 'gitview_pr/haicrypt/**', 'gitview_pr/scripts/**', 'gitview_pr/srtcore/**', 'gitview_pr/test/**', 'gitview_pr/testing/**') }}
+        restore-keys: srt-ccache-abi-current-${{ runner.os }}-${{ runner.arch }}-
+    - name: Set up ccache
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends ccache
+        ccache --max-size=200M
+        ccache --zero-stats
     - id: configure
       name: Configure (cmake)
       run: |
         cd gitview_pr
         mkdir _build && cd _build
-        cmake -DCMAKE_BUILD_TYPE=Debug ../
+        cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache ../
     - id: build
       name: Build and dump
       run: |
@@ -43,6 +57,15 @@ jobs:
         sha256sum libsrt-pr.dump
         echo "WILL CHECK ABI changes ${SRT_BASE} - ${SRT_TAG_VERSION}"
         echo "SRT_BASE=${SRT_BASE}" >> "$GITHUB_OUTPUT"
+    - name: Save ccache
+      if: ${{ success() && github.event_name != 'pull_request' }}
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ runner.temp }}/ccache
+        key: srt-ccache-abi-current-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gitview_pr/CMakeLists.txt', 'gitview_pr/cmake_object_lib_support.c', 'gitview_pr/apps/**', 'gitview_pr/common/**', 'gitview_pr/haicrypt/**', 'gitview_pr/scripts/**', 'gitview_pr/srtcore/**', 'gitview_pr/test/**', 'gitview_pr/testing/**') }}
+    - name: Show ccache statistics
+      if: always()
+      run: ccache --show-stats
     - id: upload_pr_dump
       uses: actions/upload-artifact@v7
       with:
@@ -56,13 +79,27 @@ jobs:
     if: ${{ needs.build_pr.outputs.base_version != '' }}
 
     env:
-       SRT_BASE: ${{ needs.build_pr.outputs.base_version }}
-       SRT_TAG_VERSION: ${{ needs.build_pr.outputs.tag_version }}
+      SRT_BASE: ${{ needs.build_pr.outputs.base_version }}
+      SRT_TAG_VERSION: ${{ needs.build_pr.outputs.tag_version }}
     steps:
     - uses: actions/checkout@v7
       with:
         path: gitview_base
         ref: ${{ env.SRT_BASE }}
+    - name: Configure ccache environment
+      run: echo "CCACHE_DIR=$RUNNER_TEMP/ccache" >> "$GITHUB_ENV"
+    - name: Restore ccache
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ runner.temp }}/ccache
+        key: srt-ccache-abi-base-${{ runner.os }}-${{ runner.arch }}-${{ env.SRT_BASE }}-${{ hashFiles('gitview_base/CMakeLists.txt', 'gitview_base/cmake_object_lib_support.c', 'gitview_base/apps/**', 'gitview_base/common/**', 'gitview_base/haicrypt/**', 'gitview_base/scripts/**', 'gitview_base/srtcore/**', 'gitview_base/test/**', 'gitview_base/testing/**') }}
+        restore-keys: srt-ccache-abi-base-${{ runner.os }}-${{ runner.arch }}-${{ env.SRT_BASE }}-
+    - name: Set up ccache
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends ccache
+        ccache --max-size=200M
+        ccache --zero-stats
     - id: configure_tag
       name: Configure (cmake)
       run: |
@@ -75,7 +112,7 @@ jobs:
         fi
         cd gitview_base
         mkdir _build && cd _build
-        cmake -DCMAKE_BUILD_TYPE=Debug ../
+        cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache ../
     - id: build_tag
       name: Build and dump
       if: ${{ success() }}
@@ -89,6 +126,15 @@ jobs:
         abi-dumper libsrt.so -o libsrt-base.dump -public-headers installdir/usr/local/include/srt/ -lver "$SRT_BASE"
         ls -ld libsrt-base.dump
         sha256sum libsrt-base.dump
+    - name: Save ccache
+      if: ${{ success() && github.event_name != 'pull_request' }}
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ runner.temp }}/ccache
+        key: srt-ccache-abi-base-${{ runner.os }}-${{ runner.arch }}-${{ env.SRT_BASE }}-${{ hashFiles('gitview_base/CMakeLists.txt', 'gitview_base/cmake_object_lib_support.c', 'gitview_base/apps/**', 'gitview_base/common/**', 'gitview_base/haicrypt/**', 'gitview_base/scripts/**', 'gitview_base/srtcore/**', 'gitview_base/test/**', 'gitview_base/testing/**') }}
+    - name: Show ccache statistics
+      if: always()
+      run: ccache --show-stats
     - id: upload_base_dump
       uses: actions/upload-artifact@v7
       with:

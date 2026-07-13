@@ -28,23 +28,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/cache@v6
+      - name: Configure ccache environment
+        run: echo "CCACHE_DIR=$RUNNER_TEMP/ccache" >> "$GITHUB_ENV"
+      - name: Restore ccache
+        uses: actions/cache/restore@v6
         with:
-          path: ~/.cache/ccache
-          key: srt-runtime-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'srtcore/**', 'packaging/**') }}
-          restore-keys: srt-runtime-${{ runner.os }}-
+          path: ${{ runner.temp }}/ccache
+          key: srt-ccache-runtime-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'cmake_object_lib_support.c', 'common/**', 'haicrypt/**', 'packaging/**', 'scripts/**', 'srtcore/**') }}
+          restore-keys: srt-ccache-runtime-${{ runner.os }}-${{ runner.arch }}-
       - name: Build and verify the runtime package
         run: |
+          mkdir -p "$CCACHE_DIR"
           docker run --rm \
             -v "$PWD":/src \
-            -v "$HOME/.cache/ccache":/root/.cache/ccache \
+            -v "$CCACHE_DIR":/root/.cache/ccache \
             -w /src \
             debian:bookworm \
             bash -lc '
               apt-get update -qq
               DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
                 build-essential ccache cmake dpkg-dev libgnutls28-dev pkg-config
-              CC="ccache gcc" CXX="ccache g++" packaging/build-deb.sh
+              ccache --max-size=200M
+              ccache --zero-stats
+              trap "ccache --show-stats" EXIT
+              CMAKE_C_COMPILER_LAUNCHER=ccache \
+                CMAKE_CXX_COMPILER_LAUNCHER=ccache \
+              packaging/build-deb.sh
               packaging/package-contract.sh
               packaging/verify-runtime-replacement.sh dist/libsrt1.5-ceralive_1.5.5+ceralive.1_amd64.deb
             '
+      - name: Save ccache
+        if: ${{ success() && github.event_name != 'pull_request' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: srt-ccache-runtime-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'cmake_object_lib_support.c', 'common/**', 'haicrypt/**', 'packaging/**', 'scripts/**', 'srtcore/**') }}
