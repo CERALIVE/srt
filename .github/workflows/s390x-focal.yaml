@@ -23,8 +23,16 @@ jobs:
           "
     - name: Checkout
       uses: actions/checkout@v7
+    - name: Restore ccache
+      uses: actions/cache/restore@v6
+      with:
+        path: .ccache
+        key: srt-ccache-s390x-focal-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'cmake_object_lib_support.c', 'apps/**', 'common/**', 'examples/**', 'haicrypt/**', 'scripts/**', 'srtcore/**', 'test/**', 'testing/**') }}
+        restore-keys: srt-ccache-s390x-focal-${{ runner.os }}-${{ runner.arch }}-
     - name: configure
       uses: docker://multiarch/ubuntu-core:s390x-focal
+      env:
+        CCACHE_DIR: /github/workspace/.ccache
       with:
         args: >
           bash -c
@@ -34,8 +42,17 @@ jobs:
           apt-get -y install tzdata &&
           uname -a &&
           lscpu | grep Endian &&
-          apt-get -y install cmake g++ libssl-dev git && 
+          apt-get -y install ccache cmake g++ libssl-dev git &&
+          ccache --max-size=200M &&
+          ccache --zero-stats &&
+          trap 'ccache --show-stats' EXIT &&
           mkdir _build && cd _build &&
-          cmake ../ -DENABLE_ENCRYPTION=ON -DENABLE_UNITTESTS=ON -DENABLE_BONDING=ON -DENABLE_TESTING=ON -DENABLE_EXAMPLES=ON &&
+          cmake ../ -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DENABLE_ENCRYPTION=ON -DENABLE_UNITTESTS=ON -DENABLE_BONDING=ON -DENABLE_TESTING=ON -DENABLE_EXAMPLES=ON &&
           cmake --build ./ &&
           ./test-srt -disable-ipv6"
+    - name: Save ccache
+      if: ${{ success() && github.event_name != 'pull_request' }}
+      uses: actions/cache/save@v6
+      with:
+        path: .ccache
+        key: srt-ccache-s390x-focal-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'cmake_object_lib_support.c', 'apps/**', 'common/**', 'examples/**', 'haicrypt/**', 'scripts/**', 'srtcore/**', 'test/**', 'testing/**') }}

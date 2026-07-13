@@ -10,6 +10,9 @@ jobs:
   build:
     name: NDK-R23
     runs-on: ubuntu-latest
+    env:
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
 
     steps:
     - name: Setup Android NDK R23
@@ -19,8 +22,31 @@ jobs:
         ndk-version: r23
         add-to-path: false
     - uses: actions/checkout@v7
+    - name: Configure ccache environment
+      run: echo "CCACHE_DIR=$RUNNER_TEMP/ccache" >> "$GITHUB_ENV"
+    - name: Restore ccache
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ runner.temp }}/ccache
+        key: srt-ccache-android-r23-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'cmake_object_lib_support.c', 'apps/**', 'common/**', 'configure', 'configure-data.tcl', 'haicrypt/**', 'scripts/**', 'srtcore/**') }}
+        restore-keys: srt-ccache-android-r23-${{ runner.os }}-${{ runner.arch }}-
+    - name: Set up ccache
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends ccache
+        ccache --max-size=200M
+        ccache --zero-stats
     - name: build
       run: |
         cd ./scripts/build-android/
         echo ${{ steps.setup-ndk.outputs.ndk-path }}
         source ./build-android -n ${{ steps.setup-ndk.outputs.ndk-path }}
+    - name: Save ccache
+      if: ${{ success() && github.event_name != 'pull_request' }}
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ runner.temp }}/ccache
+        key: srt-ccache-android-r23-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'cmake_object_lib_support.c', 'apps/**', 'common/**', 'configure', 'configure-data.tcl', 'haicrypt/**', 'scripts/**', 'srtcore/**') }}
+    - name: Show ccache statistics
+      if: always()
+      run: ccache --show-stats
