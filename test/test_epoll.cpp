@@ -731,7 +731,6 @@ protected:
         std::cout << "serverSocket finished waiting" << std::endl;
 
         srt_close(acpsock);
-        srt_close(servsock);
     }
 
     void setup() override
@@ -761,8 +760,9 @@ TEST_F(TestEPoll, SimpleAsync)
 
     runServer(ss);
 
+    EXPECT_EQ(SRTS_LISTENING, srt_getsockstate(ss)) << "runServer must not close its caller-owned listener";
+
     client.join(); // Make sure client has exit before you delete the socket
 
-    srt_close(m_client_sock); // cannot close m_client_sock after srt_sendmsg because of issue in api.c:2346 
+    srt_close(m_client_sock); // cannot close m_client_sock after srt_sendmsg because of issue in api.c:2346
 }
-

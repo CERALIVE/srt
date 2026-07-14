@@ -301,16 +301,17 @@ protected:
     {
         MAKE_UNIQUE_SOCK(client_sock, "[T/S]connect", srt_create_socket());
 
+        UniquePollid server_pollid;
+        ASSERT_NE(int(server_pollid), SRT_ERROR);
+        int epoll_in = SRT_EPOLL_IN;
+        std::cout << "[T/S] Listener/binder sock @" << bindsock << " added to server_pollid\n";
+        ASSERT_NE(srt_epoll_add_usock(server_pollid, bindsock, &epoll_in), SRT_ERROR);
+
         auto run = [this, &client_sock, ip, port, expect_success]() { clientSocket(client_sock, ip, port, expect_success); };
 
         auto launched = std::async(std::launch::async, run);
 
         AtReturnJoin<decltype(launched)> atreturn_join {launched};
-
-        int server_pollid = srt_epoll_create();
-        int epoll_in = SRT_EPOLL_IN;
-        std::cout << "[T/S] Listener/binder sock @" << bindsock << " added to server_pollid\n";
-        srt_epoll_add_usock(server_pollid, bindsock, &epoll_in);
 
         { // wait for connection from client
             int rlen = 2;
@@ -380,22 +381,14 @@ protected:
 
             EXPECT_EQ(memcmp(pattern, buffer, sizeof pattern), 0);
 
-            // XXX There is a possibility that a broken socket can be closed automatically,
-            // just the srt_close() call would simply return error in case of nonexistent
-            // socket. Therefore close them both at once; this problem needs to be fixed
-            // separately.
-            //
             // The test only intends to send one portion of data from the client, so once
             // received, the client has nothing more to do and should exit.
+            launched.wait();
+            std::cout << "[T/S] closing accepted socket @" << accepted_sock << "\n";
+            accepted_sock.close();
             std::cout << "[T/S] closing client socket\n";
             client_sock.close();
-            std::cout << "[T/S] closing sockets: ACP:@" << accepted_sock << "...\n";
         }
-        srt_epoll_release(server_pollid);
-
-        // client_sock closed through UniqueSocket.
-        // cannot close client_sock after srt_sendmsg because of issue in api.c:2346 
-
         std::cout << "[T/S] joining client async \n";
         launched.get();
     }

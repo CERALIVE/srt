@@ -25,7 +25,6 @@
 #include <ctime>
 #include <random>
 #include <vector>
-#include <atomic>
 
 //#pragma comment (lib, "ws2_32.lib")
 
@@ -51,7 +50,7 @@ TEST(Transmission, FileUpload)
     sa_lsn.sin_port = htons(5555);
 
     MAKE_UNIQUE_SOCK(sock_lsn_u, "listener", sock_lsn);
-    MAKE_UNIQUE_SOCK(sock_clr_u, "listener", sock_clr);
+    MAKE_UNIQUE_SOCK(sock_clr_u, "caller", sock_clr);
 
     // Find unused a port not used by any other service.    
     // Otherwise srt_connect may actually connect.
@@ -99,7 +98,7 @@ TEST(Transmission, FileUpload)
 
     // Start listener-receiver thread
 
-    std::atomic<bool> thread_exit { false };
+    srt::UniqueSocket accepted_sock_u;
 
     std::cout << "Running accept [A] thread\n";
 
@@ -108,31 +107,26 @@ TEST(Transmission, FileUpload)
         sockaddr_in remote;
         int len = sizeof remote;
         std::cout << "[A] waiting for connection\n";
-        const SRTSOCKET accepted_sock = srt_accept(sock_lsn, (sockaddr*)&remote, &len);
-        ASSERT_GT(accepted_sock, 0);
+        accepted_sock_u.ref() = srt_accept(sock_lsn, (sockaddr*)&remote, &len);
+        ASSERT_GT(accepted_sock_u.ref(), 0);
 
-        if (accepted_sock == SRT_INVALID_SOCK)
+        if (accepted_sock_u == SRT_INVALID_SOCK)
         {
             std::cerr << srt_getlasterror_str() << std::endl;
-            EXPECT_NE(srt_close(sock_lsn), SRT_ERROR);
             return;
         }
 
         std::ofstream copyfile("file.target", std::ios::out | std::ios::trunc | std::ios::binary);
 
         std::vector<char> buf(1456);
+        size_t            received_size = 0;
 
         std::cout << "[A] Connected, reading data...\n";
-        for (;;)
+        while (received_size < filesize)
         {
-            int n = srt_recv(accepted_sock, buf.data(), 1456);
-            EXPECT_NE(n, SRT_ERROR) << srt_getlasterror_str();
-            if (n == 0)
-            {
-                std::cout << "Received 0 bytes, breaking.\n";
-                break;
-            }
-            else if (n == -1)
+            const int n = srt_recv(accepted_sock_u, buf.data(), 1456);
+            EXPECT_GT(n, 0) << srt_getlasterror_str();
+            if (n <= 0)
             {
                 std::cout << "READ FAILED, breaking anyway\n";
                 break;
@@ -140,13 +134,11 @@ TEST(Transmission, FileUpload)
 
             // Write to file any amount of data received
             copyfile.write(buf.data(), n);
+            received_size += size_t(n);
         }
-        std::cout << "[A] Closing socket\n";
-
-        EXPECT_NE(srt_close(accepted_sock), SRT_ERROR);
+        EXPECT_EQ(received_size, filesize);
 
         std::cout << "[A] Exit\n";
-        thread_exit = true;
     });
 
     sockaddr_in sa = sockaddr_in();
@@ -184,13 +176,13 @@ TEST(Transmission, FileUpload)
         ASSERT_EQ(ifile.good(), true);
     }
 
-    // Finished sending, close the socket
-    std::cout << "Finished sending, closing sockets:\n";
-    srt_close(sock_clr);
-    srt_close(sock_lsn);
-
-    std::cout << "Sockets closed, joining receiver thread\n";
+    std::cout << "Finished sending, joining receiver thread\n";
     client.join();
+
+    std::cout << "Closing sockets\n";
+    accepted_sock_u.close();
+    sock_clr_u.close();
+    sock_lsn_u.close();
 
     std::ifstream tarfile("file.target", std::ios::in | std::ios::binary);
     EXPECT_EQ(!!tarfile, true);
