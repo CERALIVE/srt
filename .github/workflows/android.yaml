@@ -13,6 +13,7 @@ jobs:
     env:
       CMAKE_C_COMPILER_LAUNCHER: ccache
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CCACHE_COMPILERCHECK: content
 
     steps:
     - name: Setup Android NDK R23
@@ -25,7 +26,7 @@ jobs:
     - name: Configure ccache environment
       id: ccache
       env:
-        CACHE_KEY: srt-ccache-android-r23-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'cmake_object_lib_support.c', 'apps/**', 'common/**', 'configure', 'configure-data.tcl', 'haicrypt/**', 'scripts/**', 'srtcore/**') }}
+        CACHE_KEY: srt-ccache-android-r23-content-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'cmake_object_lib_support.c', 'apps/**', 'common/**', 'configure', 'configure-data.tcl', 'haicrypt/**', 'scripts/**', 'srtcore/**') }}
       run: |
         echo "CCACHE_DIR=$RUNNER_TEMP/ccache" >> "$GITHUB_ENV"
         echo "key=$CACHE_KEY" >> "$GITHUB_OUTPUT"
@@ -34,12 +35,13 @@ jobs:
       with:
         path: ${{ runner.temp }}/ccache
         key: ${{ steps.ccache.outputs.key }}
-        restore-keys: srt-ccache-android-r23-${{ runner.os }}-${{ runner.arch }}-
+        restore-keys: srt-ccache-android-r23-content-v1-${{ runner.os }}-${{ runner.arch }}-
     - name: Set up ccache
       run: |
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends ccache
         ccache --max-size=200M
+        ccache --show-config
         ccache --zero-stats
     - name: build
       run: |

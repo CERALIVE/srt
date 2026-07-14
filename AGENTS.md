@@ -168,6 +168,11 @@ When a build can generate files beneath a hashed source glob, compute the key
 once from the clean post-checkout tree and reuse that immutable value for both
 restore and save. The Android workflow does this because `build-android`
 creates dependency and ABI output beneath its hashed `scripts/**` tree.
+Android also uses content-based compiler identity because `setup-ndk`
+materializes NDK r23 on each runner; ccache's default mtime identity would turn
+identical compiler bytes with fresh mtimes into cross-run misses. Its versioned
+cache namespace is part of that policy so an older mtime-keyed archive cannot
+block the first content-keyed save.
 
 | Workflow | Coverage |
 |----------|----------|
