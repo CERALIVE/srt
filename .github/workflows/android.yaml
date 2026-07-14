@@ -37,11 +37,18 @@ jobs:
         key: ${{ steps.ccache.outputs.key }}
         restore-keys: srt-ccache-android-r23-content-v1-${{ runner.os }}-${{ runner.arch }}-
     - name: Set up ccache
+      env:
+        NDK_PATH: ${{ steps.setup-ndk.outputs.ndk-path }}
       run: |
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends ccache
         ccache --max-size=200M
         ccache --show-config
+        compiler=$(readlink -f "$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++")
+        printf 'NDK compiler path: %s\n' "$compiler"
+        sha256sum "$compiler"
+        stat --format='NDK compiler mtime: %y' "$compiler"
+        "$compiler" --version
         ccache --zero-stats
     - name: build
       run: |
