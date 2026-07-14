@@ -224,6 +224,9 @@ pairs, register readiness before launching a fast peer, synchronize the worker,
 and close every owner explicitly; finite transfers consume their known byte count
 instead of using peer shutdown as an end marker. These lifecycle assertions are
 required gates and must not be relaxed or retried away.
+Connection-timeout tests enforce their upper timing bound through the epoll API
+deadline, not elapsed time after the waiting thread is rescheduled, and also
+assert the resulting socket state and rejection reason.
 
 ## WHERE TO LOOK
 
