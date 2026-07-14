@@ -1,4 +1,8 @@
 #include <chrono>
+#include <future>
+#include <map>
+#include <memory>
+#include <mutex>
 #include <thread>
 #include <gtest/gtest.h>
 #include "test_env.h"
@@ -18,6 +22,43 @@ typedef int SOCKET;
 
 using namespace std;
 using namespace srt_logging;
+
+struct ConnectResult
+{
+    int                              error_code;
+    chrono::steady_clock::time_point observed_at;
+};
+
+typedef shared_ptr<promise<ConnectResult> > ConnectResultPromise;
+
+static mutex                                connect_result_mutex;
+static map<SRTSOCKET, ConnectResultPromise> connect_result_promises;
+
+static void ObserveConnectResult(SRTSOCKET socket, const ConnectResultPromise& result_promise)
+{
+    lock_guard<mutex> lock(connect_result_mutex);
+    connect_result_promises[socket] = result_promise;
+}
+
+static void ForgetConnectResult(SRTSOCKET socket)
+{
+    lock_guard<mutex> lock(connect_result_mutex);
+    connect_result_promises.erase(socket);
+}
+
+static void RecordConnectResult(void*, SRTSOCKET socket, int error_code, const sockaddr*, int)
+{
+    ConnectResultPromise result_promise;
+    {
+        lock_guard<mutex>                              lock(connect_result_mutex);
+        map<SRTSOCKET, ConnectResultPromise>::iterator result = connect_result_promises.find(socket);
+        if (result == connect_result_promises.end())
+            return;
+        result_promise = result->second;
+        connect_result_promises.erase(result);
+    }
+    result_promise->set_value(ConnectResult{error_code, chrono::steady_clock::now()});
+}
 
 class TestConnectionTimeout
     : public ::srt::Test
@@ -117,6 +158,11 @@ TEST_F(TestConnectionTimeout, Nonblocking) {
     ASSERT_NE(srt_epoll_add_usock(pollid, client_sock, &epoll_out), SRT_ERROR);
 
     const sockaddr* psa = reinterpret_cast<const sockaddr*>(&m_sa);
+    ConnectResultPromise  connect_result_promise(new promise<ConnectResult>);
+    future<ConnectResult> connect_result_future = connect_result_promise->get_future();
+    ASSERT_EQ(srt_connect_callback(client_sock, &RecordConnectResult, NULL), SRT_SUCCESS);
+    ObserveConnectResult(client_sock, connect_result_promise);
+    const chrono::steady_clock::time_point connect_start = chrono::steady_clock::now();
     ASSERT_NE(srt_connect(client_sock, psa, sizeof m_sa), SRT_ERROR);
 
     // Socket readiness for connection is checked by polling on WRITE allowed sockets.
@@ -127,33 +173,35 @@ TEST_F(TestConnectionTimeout, Nonblocking) {
         int wlen = 2;
         SRTSOCKET write[2];
 
-        const chrono::steady_clock::time_point chrono_ts_start = chrono::steady_clock::now();
+        const int epoll_timeout_ms = connection_timeout_ms + 80;
+        const int epoll_result     = srt_epoll_wait(pollid, read, &rlen, write, &wlen, epoll_timeout_ms, 0, 0, 0, 0);
+        EXPECT_EQ(epoll_result, 2);
+        if (epoll_result == 2)
+        {
+            EXPECT_EQ(rlen, 1);
+            EXPECT_EQ(read[0], client_sock);
+            EXPECT_EQ(wlen, 1);
+            EXPECT_EQ(write[0], client_sock);
+            EXPECT_EQ(srt_getsockstate(client_sock), SRTS_BROKEN);
+            EXPECT_EQ(srt_getrejectreason(client_sock), SRT_REJ_TIMEOUT);
+        }
 
-        // Here we check the connection timeout.
-        // Epoll timeout is set 100 ms greater than socket's TTL
-        EXPECT_EQ(srt_epoll_wait(pollid, read, &rlen,
-                                 write, &wlen,
-                                 connection_timeout_ms + 100,   // +100 ms
-                                 0, 0, 0, 0)
-        /* Expected return value is 2. We have only 1 socket, but
-         * sockets with exceptions are returned to both read and write sets.
-        */
-                 , 2);
-        // Check the actual timeout
-        const chrono::steady_clock::time_point chrono_ts_end = chrono::steady_clock::now();
-        const auto delta_ms = chrono::duration_cast<chrono::milliseconds>(chrono_ts_end - chrono_ts_start).count();
-        // Confidence interval border : +/-80 ms
-        EXPECT_LE(delta_ms, connection_timeout_ms + 80) << "Timeout was: " << delta_ms;
-        EXPECT_GE(delta_ms, connection_timeout_ms - 80) << "Timeout was: " << delta_ms;
-
-        EXPECT_EQ(rlen, 1);
-        EXPECT_EQ(read[0], client_sock);
-        EXPECT_EQ(wlen, 1);
-        EXPECT_EQ(write[0], client_sock);
+        const future_status callback_status = connect_result_future.wait_for(chrono::milliseconds(epoll_timeout_ms));
+        EXPECT_EQ(callback_status, future_status::ready);
+        if (callback_status == future_status::ready)
+        {
+            const ConnectResult connect_result = connect_result_future.get();
+            EXPECT_EQ(connect_result.error_code, SRT_ENOSERVER);
+            const int64_t delta_ms =
+                chrono::duration_cast<chrono::milliseconds>(connect_result.observed_at - connect_start).count();
+            EXPECT_LE(delta_ms, connection_timeout_ms + 80) << "Timeout callback was: " << delta_ms;
+            EXPECT_GE(delta_ms, connection_timeout_ms - 80) << "Timeout callback was: " << delta_ms;
+        }
     }
 
     EXPECT_EQ(srt_epoll_remove_usock(pollid, client_sock), SRT_SUCCESS);
     EXPECT_EQ(srt_close(client_sock), SRT_SUCCESS);
+    ForgetConnectResult(client_sock);
     (void)srt_epoll_release(pollid);
 }
 
@@ -416,4 +464,3 @@ TEST(TestConnectionAPI, Listen)
 
     srt_cleanup();
 }
-
