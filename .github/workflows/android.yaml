@@ -23,12 +23,17 @@ jobs:
         add-to-path: false
     - uses: actions/checkout@v7
     - name: Configure ccache environment
-      run: echo "CCACHE_DIR=$RUNNER_TEMP/ccache" >> "$GITHUB_ENV"
+      id: ccache
+      env:
+        CACHE_KEY: srt-ccache-android-r23-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'cmake_object_lib_support.c', 'apps/**', 'common/**', 'configure', 'configure-data.tcl', 'haicrypt/**', 'scripts/**', 'srtcore/**') }}
+      run: |
+        echo "CCACHE_DIR=$RUNNER_TEMP/ccache" >> "$GITHUB_ENV"
+        echo "key=$CACHE_KEY" >> "$GITHUB_OUTPUT"
     - name: Restore ccache
       uses: actions/cache/restore@v6
       with:
         path: ${{ runner.temp }}/ccache
-        key: srt-ccache-android-r23-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'cmake_object_lib_support.c', 'apps/**', 'common/**', 'configure', 'configure-data.tcl', 'haicrypt/**', 'scripts/**', 'srtcore/**') }}
+        key: ${{ steps.ccache.outputs.key }}
         restore-keys: srt-ccache-android-r23-${{ runner.os }}-${{ runner.arch }}-
     - name: Set up ccache
       run: |
@@ -46,7 +51,7 @@ jobs:
       uses: actions/cache/save@v6
       with:
         path: ${{ runner.temp }}/ccache
-        key: srt-ccache-android-r23-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'cmake_object_lib_support.c', 'apps/**', 'common/**', 'configure', 'configure-data.tcl', 'haicrypt/**', 'scripts/**', 'srtcore/**') }}
+        key: ${{ steps.ccache.outputs.key }}
     - name: Show ccache statistics
       if: always()
       run: ccache --show-stats

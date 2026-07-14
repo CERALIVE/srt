@@ -164,6 +164,10 @@ restore-only so untrusted code cannot seed executable compiler output. Every
 cache is capped at 200 MB, and CMake is wired through
 `CMAKE_C_COMPILER_LAUNCHER=ccache` and
 `CMAKE_CXX_COMPILER_LAUNCHER=ccache`.
+When a build can generate files beneath a hashed source glob, compute the key
+once from the clean post-checkout tree and reuse that immutable value for both
+restore and save. The Android workflow does this because `build-android`
+creates dependency and ABI output beneath its hashed `scripts/**` tree.
 
 | Workflow | Coverage |
 |----------|----------|
