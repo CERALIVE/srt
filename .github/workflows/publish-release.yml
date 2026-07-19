@@ -83,6 +83,10 @@ jobs:
           tmp="$(mktemp -d)"
           dpkg-deb -x "${deb}" "${tmp}"
           test -L "${tmp}/usr/lib/$(dpkg-architecture -a "${DEB_ARCH}" -qDEB_HOST_MULTIARCH)/libsrt-gnutls.so.1.5"
+          tool="${tmp}/usr/bin/srt-live-transmit"
+          test -x "${tool}"
+          objdump -p "${tool}" | grep -q 'NEEDED.*libsrt.so.1.5'
+          ! objdump -p "${tool}" | grep -qE 'NEEDED.*lib(ssl|crypto)\.so'
           rm -rf "${tmp}"
       - name: Verify GStreamer runtime replacement
         if: matrix.arch == 'amd64'

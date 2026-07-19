@@ -14,3 +14,9 @@ dpkg-query -W -f='${Package} ${Version}\n' libsrt1.5-ceralive
 ! dpkg-query -W libsrt1.5-gnutls >/dev/null 2>&1
 ldd "${plugin}" | grep -F 'libsrt-gnutls.so.1.5'
 ldconfig -p | grep -E 'libsrt(-gnutls)?\.so\.1\.5'
+
+# The bundled SRT tools must resolve the SAME forked libsrt.so.1.5 and pull in no
+# second TLS flavor (no OpenSSL): they share the one CeraLive GnuTLS runtime.
+tool="$(command -v srt-live-transmit)"
+ldd "${tool}" | grep -F 'libsrt.so.1.5'
+! ldd "${tool}" | grep -qE 'lib(ssl|crypto)\.so'

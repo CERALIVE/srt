@@ -15,11 +15,13 @@ case "${arch}" in
 esac
 
 rm -rf "${build_dir}" "${stage_dir}"
+# ENABLE_APPS=ON + ENABLE_STATIC=OFF makes the sample tools link the shared libsrt.so.1.5
+# built here, so they load the one CeraLive GnuTLS fork — never a second SRT/TLS flavor.
 cmake -S "${root}" -B "${build_dir}" \
 	-DCMAKE_BUILD_TYPE=Release \
 	-DCMAKE_INSTALL_PREFIX=/usr \
 	-DCMAKE_INSTALL_LIBDIR="lib/${triplet}" \
-	-DENABLE_APPS=OFF \
+	-DENABLE_APPS=ON \
 	-DENABLE_SHARED=ON \
 	-DENABLE_STATIC=OFF \
 	-DENABLE_TESTING=OFF \
@@ -52,6 +54,10 @@ Description: CeraLive fork of libsrt with a unified GnuTLS runtime ABI
  The CeraLive streaming stack's single runtime SRT library. It provides both
  Debian TLS-flavor package names so GStreamer and direct FFI consumers load the
  same forked shared object.
+ .
+ This package also ships the SRT sample command-line tools (srt-live-transmit,
+ srt-file-transmit, srt-tunnel), linked against the same GnuTLS libsrt.so.1.5 so
+ no second SRT/TLS flavor is introduced, plus the srt-ffplay helper script.
 EOF
 
 mkdir -p "${out_dir}"
