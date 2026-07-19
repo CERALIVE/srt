@@ -16,6 +16,36 @@ Parent: [`../AGENTS.md`](../AGENTS.md)
 - **Consumers:** `cerastream` (direct FFI) and GStreamer runtime components.
 - `irl-srt-server` uses system libsrt (deployment-dependent version), not this fork.
 
+### Bundled SRT tools (`srt-live-transmit`, `srt-file-transmit`, `srt-tunnel`)
+
+`libsrt1.5-ceralive` also ships the SRT sample command-line tools in `/usr/bin`
+(built with `-DENABLE_APPS=ON`). `srt-live-transmit` is the one the device path
+needs (SRT↔UDP relay); the other two ride along because they share the same build
+and dependencies. They are the single first-party source of `srt-live-transmit` —
+no separate `srt-tools`-style package exists (see below for why).
+
+**Single-fork invariant is preserved.** The tools are built with
+`-DENABLE_STATIC=OFF -DENABLE_SHARED=ON`, so they dynamically link the *same*
+shared `libsrt.so.1.5` shipped in this package (GnuTLS via `USE_ENCLIB=gnutls`).
+They pull in **no** OpenSSL and no second libsrt — verified in CI: the package
+build asserts `srt-live-transmit`'s `NEEDED` includes `libsrt.so.1.5` and excludes
+`libssl`/`libcrypto` (`publish-release.yml`), and `verify-runtime-replacement.sh`
+re-checks the installed binary's `ldd`. `package-contract.sh` locks
+`ENABLE_APPS=ON` + `ENABLE_STATIC=OFF` so the tools can never silently drop out or
+gain a static/second-flavor libsrt.
+
+**Why bundled, not a separate `srt-tools-ceralive` package.** The apt publish path
+(`apt-worker/scripts/reindex.sh`) downloads *every* `.deb` in a release tag and
+hard-fails (`validate_deb`, G-B) if any package name ≠ the dispatched `COMPONENT`,
+and its `VALID_COMPONENTS` allowlist has no tools package. A separate package would
+therefore require an apt-worker change (allowlist + per-package reindex) plus an
+image-pipeline `FIRST_PARTY_APT_PKGS` entry. Bundling keeps the whole change inside
+`srt`: one package, the existing `libsrt1.5-ceralive` component, the existing
+release + `apt-reindex` dispatch — all unchanged. The package already shipped
+`/usr/bin/srt-ffplay` and dev headers, so it was never a pure shared-object package.
+Consequence for the image: once the device installs `libsrt1.5-ceralive`,
+`srt-live-transmit` is present with no new package to fetch or pin.
+
 Cross-check: root `versions.yaml` entry `srt`, image
 `v2/lib/fetch-debs.sh`, and `cerastream` packaging must all name the same release.
 
@@ -141,8 +171,9 @@ BOUNDARY).
 
 | I need to… | Do this |
 |------------|---------|
-| Build the device runtime package | `packaging/build-deb.sh` (outputs `dist/libsrt1.5-ceralive_*.deb`) |
-| Verify replacement behavior | `packaging/verify-runtime-replacement.sh <deb>` |
+| Build the device runtime package (library + bundled SRT tools) | `packaging/build-deb.sh` (outputs `dist/libsrt1.5-ceralive_*.deb`) |
+| Use / find `srt-live-transmit` on device | It ships in `libsrt1.5-ceralive` at `/usr/bin/srt-live-transmit` (see [Bundled SRT tools](#bundled-srt-tools-srt-live-transmit-srt-file-transmit-srt-tunnel)) |
+| Verify replacement behavior + tool linkage | `packaging/verify-runtime-replacement.sh <deb>` |
 | Build the library to test it standalone | [BUILD](#build) — `cmake -B build …` |
 | Run the unit + bonding test suite | [TEST (ctest)](#test-ctest) |
 | Find the source / build config / options | [WHERE TO LOOK](#where-to-look) |
