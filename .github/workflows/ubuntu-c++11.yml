@@ -10,9 +10,10 @@ jobs:
   build:
     strategy:
         matrix:
-            # machine: [ubuntu-latest, ubuntu-slim, ubuntu-24.04-arm]
-            # ubuntu-slim excluded because it doesn't have cmake and installation not allowed
-            machine: [ubuntu-latest, ubuntu-24.04-arm]
+            # CERALIVE: upstream's ubuntu-24.04-arm entry is noenc + UNITTESTS=ON, which
+            # cannot build the crypto unit tests without a backend (red on upstream's own
+            # CI). Dropped; the device (arm64) is covered by the enc-ON runtime package build.
+            machine: [ubuntu-latest]
     name: ON ${{ matrix.machine }}
     runs-on: "${{ matrix.machine }}"
     steps:
