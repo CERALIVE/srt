@@ -55,7 +55,7 @@ jobs:
                 CMAKE_CXX_COMPILER_LAUNCHER=ccache \
               packaging/build-deb.sh
               packaging/package-contract.sh
-              packaging/verify-runtime-replacement.sh dist/libsrt1.5-ceralive_1.5.5+ceralive.1_amd64.deb
+              packaging/verify-runtime-replacement.sh dist/libsrt1.5-ceralive_1.5.6+ceralive.1_amd64.deb
             '
       - name: Save ccache
         if: ${{ success() && github.event_name != 'pull_request' }}
