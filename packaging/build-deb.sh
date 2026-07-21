@@ -3,7 +3,7 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 arch="${DEB_ARCH:-$(dpkg --print-architecture)}"
-version="${CERALIVE_SRT_VERSION:-1.5.5+ceralive.1}"
+version="${CERALIVE_SRT_VERSION:-1.5.6+ceralive.1}"
 triplet="$(dpkg-architecture -a "${arch}" -qDEB_HOST_MULTIARCH)"
 build_dir="${BUILD_DIR:-${root}/build-deb-${arch}}"
 stage_dir="${STAGE_DIR:-${root}/stage-deb-${arch}}"
@@ -43,7 +43,7 @@ Version: ${version}
 Architecture: ${arch}
 Maintainer: CERALIVE <contact@ceralive.tv>
 Depends: libc6 (>= 2.34), libgnutls30 (>= 3.7.9), libstdc++6 (>= 11)
-Provides: libsrt1.5-gnutls (= 1.5.5), libsrt1.5-openssl (= 1.5.5)
+Provides: libsrt1.5-gnutls (= 1.5.6), libsrt1.5-openssl (= 1.5.6)
 Conflicts: libsrt1.5-gnutls, libsrt1.5-openssl
 Replaces: libsrt1.5-gnutls, libsrt1.5-openssl
 Section: libs
