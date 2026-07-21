@@ -1,4 +1,4 @@
-name: C++11
+name: MacOS
 
 on:
   push:
@@ -6,18 +6,31 @@ on:
   pull_request:
     branches: [ "master", "dev" ]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
-
-    name: windows
-    runs-on: windows-latest
+    name: C++11 noenc
+    runs-on: macos-latest
 
     steps:
+    - name: GoogleTest
+      run: |
+        brew tap-new Haivision/gt-local
+        brew extract --version=1.12.1 --force googletest Haivision/gt-local
+        brew trust --formula Haivision/gt-local/googletest@1.12.1
+        brew install googletest@1.12.1
+        # NOTE: 1.12.1 is the last version that requires C++11; might need update later
+        # curl -o googletest.rb https://raw.githubusercontent.com/Homebrew/homebrew-core/23e7fb4dc0cc73facc3772815741e1deb87d6406/Formula/googletest.rb
+        # brew install -s googletest.rb
     - uses: actions/checkout@v7
     - name: Configure ccache environment
-      run: |
-        $cacheDir = Join-Path $env:RUNNER_TEMP 'ccache'
-        "CCACHE_DIR=$cacheDir" >> $env:GITHUB_ENV
+      run: echo "CCACHE_DIR=$RUNNER_TEMP/ccache" >> "$GITHUB_ENV"
     - name: Restore ccache
       uses: actions/cache/restore@v6
       with:
@@ -26,21 +39,17 @@ jobs:
         restore-keys: srt-ccache-cxx11-${{ runner.os }}-${{ runner.arch }}-
     - name: Set up ccache
       run: |
-        choco install ccache ninja -y --no-progress
+        brew install ccache
         ccache --max-size=200M
         ccache --zero-stats
-    - name: Set up MSVC environment
-      uses: ilammy/msvc-dev-cmd@v1
-      with:
-        arch: x64
     - name: configure
       run: |
-        md _build && cd _build
-        cmake ../ -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DENABLE_STDCXX_SYNC=ON -DENABLE_ENCRYPTION=OFF -DENABLE_UNITTESTS=ON -DENABLE_BONDING=ON -DENABLE_LOCALIF_WIN32=ON -DUSE_CXX_STD=c++11
+        mkdir _build && cd _build
+        cmake ../ -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DENABLE_STDCXX_SYNC=ON -DENABLE_ENCRYPTION=OFF -DENABLE_UNITTESTS=ON -DENABLE_BONDING=ON -DUSE_CXX_STD=17
     - name: build
-      run: cd _build && cmake --build ./ --config Release --verbose
+      run: cd _build && cmake --build ./
     - name: test
-      run: cd _build && ctest -E "TestIPv6.v6_calls_v4|TestConnectionTimeout.BlockingLoop" --extra-verbose -C Release
+      run: cd _build && ctest --extra-verbose
     - name: Save ccache
       if: ${{ success() && github.event_name != 'pull_request' }}
       uses: actions/cache/save@v6
