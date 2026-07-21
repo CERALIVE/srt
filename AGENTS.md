@@ -210,8 +210,9 @@ block the first content-keyed save.
 | `runtime-package.yml` | Existing Docker-mounted ccache, normalized to the shared key/size/launcher contract |
 | `publish-release.yml` | Host test build and Docker package build share the restored per-architecture cache |
 | `abi.yml` | Separate current/base caches prevent concurrent writers while preserving stable restore prefixes |
-| `cxx03-ubuntu.yaml`, `cxx11-ubuntu.yaml`, `cxx11-macos.yaml` | Native Makefile builds use the CMake launchers |
-| `cxx11-win.yaml` | Uses Ninja with an explicit x64 MSVC developer environment because CMake compiler launchers are supported by Makefile/Ninja generators, not the Visual Studio generator |
+| `ubuntu-c++03.yml`, `ubuntu-c++11.yml`, `macos.yml` | Native Makefile builds use the CMake launchers (renamed from `cxx03-ubuntu.yaml` / `cxx11-ubuntu.yaml` / `cxx11-macos.yaml` in the upstream v1.5.6 CI restructure; CeraLive ccache carried onto the renamed files) |
+| `windows-msvc-noenc.yml` | Uses Ninja with an explicit x64 MSVC developer environment because CMake compiler launchers are supported by Makefile/Ninja generators, not the Visual Studio generator (renamed from `cxx11-win.yaml`) |
+| `ubuntu-mingw.yml` | Upstream v1.5.6 addition (MinGW cross-build, `-DENABLE_UNITTESTS=OFF`); intentionally uncached — no CeraLive ccache precedent and it runs no unit tests |
 | `android.yaml`, `iOS.yaml`, `s390x-focal.yaml` | Target/matrix-specific cross-build caches; container builds mount a host-restored cache path |
 
 `codeql.yml` is intentionally uncached: its manual C/C++ build must execute and
