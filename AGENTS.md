@@ -8,7 +8,9 @@ Parent: [`../AGENTS.md`](../AGENTS.md)
 
 - **SONAME:** `libsrt.so.1.5`
 - **Runtime package:** `libsrt1.5-ceralive` for arm64 and amd64, built by
-  `packaging/build-deb.sh` with the GnuTLS backend.
+  `packaging/build-deb.sh` with the GnuTLS backend. Current version
+  **`1.5.6+ceralive.1`** (`master` carries upstream v1.5.6, incl. the KMREQ CVE
+  fixes). The `+`-bearing version is deliberate — see the packaging contract below.
 - **Device use:** image-building-pipeline stages it from apt.ceralive.tv and
   installs it before `cerastream`. It replaces the Debian GnuTLS/OpenSSL flavors
   and provides their virtual package names; GStreamer and cerastream resolve one
@@ -33,6 +35,32 @@ build asserts `srt-live-transmit`'s `NEEDED` includes `libsrt.so.1.5` and exclud
 re-checks the installed binary's `ldd`. `package-contract.sh` locks
 `ENABLE_APPS=ON` + `ENABLE_STATIC=OFF` so the tools can never silently drop out or
 gain a static/second-flavor libsrt.
+
+### Runtime-package version contract (#20)
+
+`packaging/package-contract.sh` is a STATIC gate — it reads the packaging sources
+and workflows, so it runs without building. It locks, in addition to the
+`ENABLE_APPS`/`ENABLE_STATIC` flags above:
+
+| Locked | Current value |
+|--------|---------------|
+| `.deb` version | `1.5.6+ceralive.1` (`CERALIVE_SRT_VERSION` default in `build-deb.sh`) |
+| `Provides` | `libsrt1.5-gnutls (= 1.5.6)`, `libsrt1.5-openssl (= 1.5.6)` |
+| `Conflicts` / `Replaces` | `libsrt1.5-gnutls`, `libsrt1.5-openssl` |
+| SONAME | `libsrt.so.1.5` |
+| No stale pin | neither `publish-release.yml` nor `runtime-package.yml` may retain a `1.5.5` reference |
+
+The versioned `Provides` is what lets this package *replace* both Debian TLS
+flavours rather than co-install beside them — the single-fork invariant depends on
+the `(= 1.5.6)` upstream version matching what Debian's flavours would satisfy, so
+the package version and the `Provides` version move together but are NOT the same
+string (`1.5.6+ceralive.1` vs `1.5.6`).
+
+**The `+` is load-bearing downstream.** apt's https method percent-encodes `+` as
+`%2B` in the fetch URL while R2 stores the literal `+`, which 404'd every
+`+`-versioned `.deb` on-device until `apt-worker` #23 keyed lookups on the decoded
+path. Keep that in mind before assuming a `+` version is "just cosmetic": see
+`apt-worker/AGENTS.md` → "R2 keys are matched on the percent-DECODED path".
 
 **Why bundled, not a separate `srt-tools-ceralive` package.** The apt publish path
 (`apt-worker/scripts/reindex.sh`) downloads *every* `.deb` in a release tag and
