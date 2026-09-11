@@ -6,12 +6,20 @@ on:
   pull_request:
     branches: [ "master", "dev" ]
     types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
     name:  noenc
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
     - name: Dependencies
       run: |
         sudo apt install -y g++-mingw-w64-x86-64-posix gcc-mingw-w64-x86-64-posix
@@ -24,4 +32,3 @@ jobs:
         cmake .. -DENABLE_ENCRYPTION=OFF -DENABLE_UNITTESTS=OFF -DUSE_OPENSSL_PC=OFF -DCMAKE_SYSTEM_NAME=Windows -DENABLE_BONDING=ON -DENABLE_TESTING=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
     - name: Build
       run: cd _build && make -j -k
-
