@@ -95,13 +95,22 @@ marked as CERALIVE additions.
 
 | Branch | Base | Purpose |
 |--------|------|---------|
-| `master` | BELABOX-merge lineage (legacy) | Historical CERALIVE/BELABOX fork; **not** pinned for new builds |
-| `reorderfreeze-1.5.5` | Haivision `1e4c908` (v1.5.5 + upstream fixes) | Clean reset to upstream + the single sanctioned CERALIVE patch (`SRTO_REORDERFREEZE`). This is the branch consumed by the cloud receiver build |
+| `master` | Haivision v1.5.6 + CeraLive runtime changes | The maintained CeraLive runtime line and source of released device packages |
 
-`reorderfreeze-1.5.5` deliberately **sheds** the old BELABOX C-source patches
-(unconditional reorder-tolerance freeze, periodic-NAK disable, `iMaxReorderTolerance`
-TTL override) and re-introduces *only* the reorder-tolerance decay freeze, now as an
-opt-in socket option decoupled from `SRTO_NAKREPORT`.
+`reorderfreeze-1.5.5` is neither a branch nor a tag in CERALIVE/srt or
+Haivision/srt; do not use it as a checkout base. The CeraLive line was reset at
+`66b3609` to Haivision `1e4c908` and retains only the sanctioned
+`SRTO_REORDERFREEZE` patch, not the old BELABOX C-source patches (unconditional
+reorder-tolerance freeze, periodic-NAK disable, or the
+`iMaxReorderTolerance` TTL override).
+
+### ABI baseline
+
+`.github/workflows/abi.yml` compares proposed builds with the immutable
+`srt-v1.5.6+ceralive.1` tag: the latest shipped CeraLive source release. This
+tests compatibility against the ABI that device consumers actually received,
+without depending on a fork-external or absent ref. Advance this baseline only
+after the next CeraLive runtime release is published.
 
 ## SANCTIONED CERALIVE PATCH — `SRTO_REORDERFREEZE`
 
@@ -137,9 +146,9 @@ source for unrelated features.
 
 ## BASELINE PATCH STATUS (ADR-002 "C is SAFE")
 
-**`SRTO_REORDERFREEZE` is the only CERALIVE patch** on the `reorderfreeze-1.5.5`
-branch. No other functional changes exist in the C/C++ source relative to upstream
-Haivision `1e4c908` (v1.5.5 + upstream security/bug fixes).
+**`SRTO_REORDERFREEZE` is the only CERALIVE patch** on the CeraLive line derived
+from Haivision `1e4c908`. No other functional changes were introduced in that
+reset relative to upstream v1.5.5 plus its security/bug fixes.
 
 ADR-002 verdict: **"C is SAFE"** — the C `srtla_rec` receiver is safe to keep
 without any additional libsrt patch for baseline parity. No new patch is needed.
@@ -171,10 +180,11 @@ operator-facing catalog, not a compile flag.
 
 Canonical decision record: [`docs/RECEIVER-RECONCILIATION.md`](../docs/RECEIVER-RECONCILIATION.md)
 
-**Baseline patch status confirmed (Task 3, ADR-002 "C is SAFE"):** `SRTO_REORDERFREEZE`
-is the only CERALIVE patch on `reorderfreeze-1.5.5`. No additional libsrt patch is
-needed for BELABOX-parity baseline. The stock-libsrt substitution (`nakreport=0` +
-`lossmaxttl=40`) is authorized by ADR-002 as a safe equivalent.
+**Baseline patch status confirmed (Task 3, ADR-002 "C is SAFE"):**
+`SRTO_REORDERFREEZE` is the only CERALIVE patch on the post-`1e4c908` CeraLive
+line. No additional libsrt patch is needed for BELABOX-parity baseline. The
+stock-libsrt substitution (`nakreport=0` + `lossmaxttl=40`) is authorized by
+ADR-002 as a safe equivalent.
 
 **Device-side FEC packet-filter — compiled-in by default; catalog deferred.**
 `SRTO_PACKETFILTER` is compiled-in by default in all libsrt builds (no
@@ -270,10 +280,10 @@ cmake --build build -j$(nproc)
 ctest --test-dir build --output-on-failure
 ```
 
-Baseline on `reorderfreeze-1.5.5` (Haivision `1e4c908` + the `SRTO_REORDERFREEZE`
-patch): the full gtest suite passes (1 disabled: `CTimer.SleeptoAccuracy`). Note:
-`ENABLE_TESTING=ON` alone registers no ctest tests — `ENABLE_UNITTESTS=ON` is what
-wires the gtest suite into ctest.
+On the CeraLive baseline derived from Haivision `1e4c908` plus
+`SRTO_REORDERFREEZE`, the full gtest suite passes (1 disabled:
+`CTimer.SleeptoAccuracy`). Note: `ENABLE_TESTING=ON` alone registers no ctest
+tests — `ENABLE_UNITTESTS=ON` is what wires the gtest suite into ctest.
 
 Socket tests keep one owner per handle. A `UniqueSocket` must not be bypassed by
 raw-closing its handle, and an explicit owner close releases that handle while
