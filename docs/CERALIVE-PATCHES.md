@@ -9,7 +9,11 @@ The C/C++ source of this fork stays as close to upstream as possible (see
 [`AGENTS.md`](../AGENTS.md) → SCOPE BOUNDARY). Upstream is absorbed by **true merge**,
 never by rebase/replay, so every upstream tag remains fully contained in the fork
 history and the merge-base keeps advancing on each catch-up. The most recent sync is
-upstream **v1.5.6** (`c63c311`, KMREQ heap-overflow hardening, CVE-2026-55868/55869).
+upstream **v1.5.7** (`899348d`, KMREQ and encryption-state validation, ACK and
+DROPREQ validation, FEC bounds, bonding BACKUP lifetime safety, and sample-tool
+path validation). Both CeraLive patches below are retained. The published package
+and immutable ABI comparison baseline remain `srt-v1.5.6+ceralive.1` pending the
+separate release cutover.
 
 There are exactly **two** functional CeraLive patches to the C/C++ source. Everything
 else the fork carries is packaging and CI (documented at the end for completeness).
