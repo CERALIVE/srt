@@ -213,6 +213,12 @@ while retaining the fork's opt-in reorder freeze and deterministic socket teardo
 See [CeraLive Patch Set](docs/CERALIVE-PATCHES.md). The published runtime package
 and ABI reference remain `srt-v1.5.6+ceralive.1` until the separate release cutover.
 
+The receiver-side `SRTO_PERIODICNAKGATE` option (`periodicnakgate` in tool URIs)
+is default-off. Enabling it excludes losses still within the packet-count reorder
+window from periodic NAK reports. Confirmed losses retain periodic re-reporting;
+immediate loss reporting and NAK timer intervals are unchanged. Configure it before
+connect/listen, independently of `SRTO_REORDERFREEZE` and `SRTO_NAKREPORT`.
+
 - [Release notes](https://github.com/Haivision/srt/releases)
 - [SRT versioning](./docs/dev/developers-guide.md#versioning)
 

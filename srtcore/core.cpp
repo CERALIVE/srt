@@ -12090,6 +12090,12 @@ int srt::CUDT::checkACKTimer(const steady_clock::time_point &currtime)
     return because_decision;
 }
 
+// C++03-compatible equivalent of the upstream range-sort lambda.
+static bool freshLossRangeLess(const pair<int32_t, int32_t>& a, const pair<int32_t, int32_t>& b)
+{
+    return CSeqNo::seqcmp(a.first, b.first) < 0;
+}
+
 int srt::CUDT::checkNAKTimer(const steady_clock::time_point& currtime)
 {
     // XXX The problem with working NAKREPORT with SRT_ARQ_ONREQ
@@ -12124,8 +12130,67 @@ int srt::CUDT::checkNAKTimer(const steady_clock::time_point& currtime)
         if (currtime <= m_tsNextNAKTime.load())
             return BECAUSE_NO_REASON; // wait for next NAK time
 
-        sendCtrl(UMSG_LOSSREPORT);
-        debug_decision = BECAUSE_NAKREPORT;
+        // CERALIVE periodic-nak-ttl: ported from onsmith/srt b5690bc (2026-07-05), gated by SRTO_PERIODICNAKGATE instead of SRTLAPATCHES
+        if (m_config.bPeriodicNakGate)
+        {
+            vector<int32_t> lossdata;
+            {
+                ScopedLock lk(m_RcvLossLock);
+                FixedArray<int32_t> arr(m_iMaxDataPayloadSize / sizeof(int32_t));
+                const int arrlen = m_pRcvLossList->getLossArray(arr);
+
+                vector<pair<int32_t, int32_t> > fresh;
+                fresh.reserve(m_FreshLoss.size());
+                for (size_t k = 0; k < m_FreshLoss.size(); ++k)
+                    fresh.push_back(make_pair(m_FreshLoss[k].seq[0], m_FreshLoss[k].seq[1]));
+                sort(fresh.begin(), fresh.end(), freshLossRangeLess);
+
+                for (int n = 0; n < arrlen; )
+                {
+                    int32_t lo, hi;
+                    if (arr[n] & LOSSDATA_SEQNO_RANGE_FIRST)
+                    {
+                        lo = arr[n] & ~LOSSDATA_SEQNO_RANGE_FIRST;
+                        hi = arr[n + 1];
+                        n += 2;
+                    }
+                    else
+                    {
+                        lo = hi = arr[n];
+                        n += 1;
+                    }
+
+                    // Subtract still-reorderable ranges without walking every lost sequence.
+                    int32_t cur = lo;
+                    for (size_t f = 0; f < fresh.size(); ++f)
+                    {
+                        const int32_t f_lo = fresh[f].first;
+                        const int32_t f_hi = fresh[f].second;
+                        if (CSeqNo::seqcmp(f_hi, cur) < 0)
+                            continue;
+                        if (CSeqNo::seqcmp(f_lo, hi) > 0)
+                            break;
+                        if (CSeqNo::seqcmp(f_lo, cur) > 0)
+                            addLossRecord(lossdata, cur, CSeqNo::decseq(f_lo));
+                        const int32_t next = CSeqNo::incseq(f_hi);
+                        if (CSeqNo::seqcmp(next, cur) > 0)
+                            cur = next;
+                        if (CSeqNo::seqcmp(cur, hi) > 0)
+                            break;
+                    }
+                    if (CSeqNo::seqcmp(cur, hi) <= 0)
+                        addLossRecord(lossdata, cur, hi);
+                }
+            }
+            if (!lossdata.empty())
+                sendCtrl(UMSG_LOSSREPORT, NULL, &lossdata[0], (int)lossdata.size());
+            debug_decision = BECAUSE_NAKREPORT;
+        }
+        else
+        {
+            sendCtrl(UMSG_LOSSREPORT);
+            debug_decision = BECAUSE_NAKREPORT;
+        }
     }
 
     m_tsNextNAKTime.store(currtime + m_tdNAKInterval);
@@ -12701,5 +12766,4 @@ HandshakeSide CUDT::handshakeSide(SRTSOCKET u)
     return s ? s->core().handshakeSide() : HSD_DRAW;
 }
 }
-
 

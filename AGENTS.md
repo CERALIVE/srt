@@ -145,15 +145,19 @@ the tolerance toward 0 and causes spurious retransmissions on a healthy bonded p
   keeps its independently-set value) and `ReorderFreezeDefaultDecays`
   (default off: stock decay still reduces the tolerance — truly opt-in).
 
-### Second sanctioned option — `SRTO_PERIODICNAKGATE` (plumbing only)
+### Second sanctioned option — `SRTO_PERIODICNAKGATE`
 
 `SRTO_PERIODICNAKGATE = 121`, URI `periodicnakgate`, is a **default-off** bool
 (`CSrtConfig::bPeriodicNakGate`) with the same `SRTO_R_PRE` restriction and accepted
-socket inheritance as `SRTO_REORDERFREEZE = 120` (URI `reorderfreeze`). Its intended
-purpose is to gate periodic NAK re-reports by reorder tolerance. **No gating behavior
-is implemented yet**: this step adds only option/URI plumbing and tests; behavior and
-full documentation follow separately. It is independent of both `SRTO_REORDERFREEZE`
-and `SRTO_NAKREPORT`.
+socket inheritance as `SRTO_REORDERFREEZE = 120` (URI `reorderfreeze`). When enabled,
+`checkNAKTimer` subtracts `m_FreshLoss` ranges from periodic loss reports, using the
+packet-count reorder window rather than a separate wall-clock delay. This ports
+onsmith/srt `b5690bc` without its bundled patch switch. The immediate-report path,
+`unlose`, NAK scheduling and the LiveCC interval floor are unchanged; default-off
+still reports the whole loss list. It is independent of both `SRTO_REORDERFREEZE`
+and `SRTO_NAKREPORT`. `test/test_periodic_nak_gate.cpp` exercises a 400 ms wire hold
+at reorder distance 40, the option-off premature-NAK control, and genuine-loss
+expiry plus periodic re-reporting in both modes.
 
 Any other functional change to the C/C++ source remains out of scope (see SCOPE
 BOUNDARY). To bump the libsrt version consumed by `cerastream`/`srtla`, update the
