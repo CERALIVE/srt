@@ -145,6 +145,16 @@ the tolerance toward 0 and causes spurious retransmissions on a healthy bonded p
   keeps its independently-set value) and `ReorderFreezeDefaultDecays`
   (default off: stock decay still reduces the tolerance — truly opt-in).
 
+### Second sanctioned option — `SRTO_PERIODICNAKGATE` (plumbing only)
+
+`SRTO_PERIODICNAKGATE = 121`, URI `periodicnakgate`, is a **default-off** bool
+(`CSrtConfig::bPeriodicNakGate`) with the same `SRTO_R_PRE` restriction and accepted
+socket inheritance as `SRTO_REORDERFREEZE = 120` (URI `reorderfreeze`). Its intended
+purpose is to gate periodic NAK re-reports by reorder tolerance. **No gating behavior
+is implemented yet**: this step adds only option/URI plumbing and tests; behavior and
+full documentation follow separately. It is independent of both `SRTO_REORDERFREEZE`
+and `SRTO_NAKREPORT`.
+
 Any other functional change to the C/C++ source remains out of scope (see SCOPE
 BOUNDARY). To bump the libsrt version consumed by `cerastream`/`srtla`, update the
 `srt` `pin:` in `versions.yaml` and re-vendor — do not open PRs against upstream C
@@ -152,8 +162,8 @@ source for unrelated features.
 
 ## BASELINE PATCH STATUS (ADR-002 "C is SAFE")
 
-**`SRTO_REORDERFREEZE` is the only CERALIVE patch** on the CeraLive line derived
-from Haivision `1e4c908`. No other functional changes were introduced in that
+**`SRTO_REORDERFREEZE` was the only CERALIVE patch at the reset** of the CeraLive
+line to Haivision `1e4c908`. No other functional changes were introduced in that
 reset relative to upstream v1.5.5 plus its security/bug fixes.
 
 ADR-002 verdict: **"C is SAFE"** — the C `srtla_rec` receiver is safe to keep
@@ -187,8 +197,8 @@ operator-facing catalog, not a compile flag.
 Canonical decision record: [`docs/RECEIVER-RECONCILIATION.md`](../docs/RECEIVER-RECONCILIATION.md)
 
 **Baseline patch status confirmed (Task 3, ADR-002 "C is SAFE"):**
-`SRTO_REORDERFREEZE` is the only CERALIVE patch on the post-`1e4c908` CeraLive
-line. No additional libsrt patch is needed for BELABOX-parity baseline. The
+`SRTO_REORDERFREEZE` was the only CERALIVE patch at the `1e4c908` reset.
+No additional libsrt patch is needed for BELABOX-parity baseline. The
 stock-libsrt substitution (`nakreport=0` + `lossmaxttl=40`) is authorized by
 ADR-002 as a safe equivalent.
 

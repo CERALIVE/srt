@@ -769,6 +769,8 @@ static bool getOptDefault(SRT_SOCKOPT optname, void* pw_optval, int& w_optlen)
         RD(-1);
     case SRTO_NAKREPORT:
         RD(true);
+    case SRTO_PERIODICNAKGATE:
+        RD(false);
     case SRTO_VERSION:
         RD(SRT_DEF_VERSION);
     case SRTO_PEERVERSION:

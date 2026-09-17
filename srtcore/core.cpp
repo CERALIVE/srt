@@ -187,6 +187,7 @@ struct SrtOptionAction
         flags[SRTO_CONNTIMEO]          = SRTO_R_PRE;
         flags[SRTO_LOSSMAXTTL]         = SRTO_POST_SPEC;
         flags[SRTO_REORDERFREEZE]      = SRTO_R_PRE;
+        flags[SRTO_PERIODICNAKGATE]    = SRTO_R_PRE;
         flags[SRTO_RCVLATENCY]         = SRTO_R_PRE;
         flags[SRTO_PEERLATENCY]        = SRTO_R_PRE;
         flags[SRTO_MINVERSION]         = SRTO_R_PRE;
@@ -878,6 +879,11 @@ void srt::CUDT::getOpt(SRT_SOCKOPT optName, void *optval, int &optlen)
 
     case SRTO_REORDERFREEZE:
         *(bool *)optval = m_config.bReorderFreeze;
+        optlen          = sizeof(bool);
+        break;
+
+    case SRTO_PERIODICNAKGATE:
+        *(bool *)optval = m_config.bPeriodicNakGate;
         optlen          = sizeof(bool);
         break;
 

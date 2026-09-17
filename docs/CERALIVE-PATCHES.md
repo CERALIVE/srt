@@ -15,8 +15,9 @@ path validation). Both CeraLive patches below are retained. The published packag
 and immutable ABI comparison baseline remain `srt-v1.5.6+ceralive.1` pending the
 separate release cutover.
 
-There are exactly **two** functional CeraLive patches to the C/C++ source. Everything
-else the fork carries is packaging and CI (documented at the end for completeness).
+There are **two** behavioral CeraLive patches to the C/C++ source, plus the
+plumbing-only second socket option below. Everything else the fork carries is
+packaging and CI (documented at the end for completeness).
 
 ---
 
@@ -40,6 +41,19 @@ bonded ingest can hold reorder tolerance at max without any of BELABOX's broader
 patches. It is opt-in and inherited by accepted sockets from the listener, so enabling
 it on the receive listener propagates to every accepted connection. ADR-002 records
 this as the **only** patch needed for BELABOX-parity baseline ("C is SAFE").
+
+---
+
+### Second socket option: `SRTO_PERIODICNAKGATE` — plumbing only
+
+`SRTO_PERIODICNAKGATE = 121` is a **default-off** bool with a PRE-connect/listen
+restriction and listener-to-accepted-socket inheritance. Its intended purpose is to
+gate periodic NAK re-reports by reorder tolerance. **No gating behavior is implemented
+yet**; this step adds the enum, `CSrtConfig::bPeriodicNakGate`, setter/getter,
+restriction entry, and option tests only. Full behavioral documentation follows the
+separate implementation. It is independent of `SRTO_REORDERFREEZE` and `SRTO_NAKREPORT`.
+The sample tools register both PRE bool URI options: `periodicnakgate` and
+`reorderfreeze` (`SRTO_REORDERFREEZE = 120`).
 
 ---
 
@@ -93,5 +107,5 @@ C/C++ patches.
 When syncing upstream, keep this file current: a new CeraLive C/C++ patch **must** be
 added here with its commit SHA and a one-paragraph rationale, and a patch that is
 retired (e.g. superseded by an upstream fix) **must** be moved to a "Retired" note
-rather than silently dropped. Any functional change beyond these two patches is out of
+rather than silently dropped. Any functional change beyond these sanctioned entries is out of
 scope for the fork (see [`AGENTS.md`](../AGENTS.md) → SCOPE BOUNDARY).

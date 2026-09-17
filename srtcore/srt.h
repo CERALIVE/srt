@@ -244,6 +244,7 @@ typedef enum SRT_SOCKOPT {
    // reorder-tolerance decay (decoupled from SRTO_NAKREPORT). Appended HIGH to
    // avoid colliding with future upstream option numbers; never gap-fill.
    SRTO_REORDERFREEZE = 120,
+   SRTO_PERIODICNAKGATE = 121, // CERALIVE: periodic NAK reports skip losses still within reorder tolerance (m_FreshLoss)
 
    SRTO_E_SIZE // Always last element, not a valid option.
 } SRT_SOCKOPT;

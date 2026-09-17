@@ -335,6 +335,7 @@ const OptionTestEntry g_test_matrix_options[] =
     { SRTO_LATENCY,             "SRTO_LATENCY", RestrictionType::PRE,     sizeof(int),                 0, INT32_MAX,      120,          200,  {-1},                    R | W | G | S | D | O | O },
     //SRTO_LINGER
     { SRTO_LOSSMAXTTL,       "SRTO_LOSSMAXTTL", RestrictionType::POST,    sizeof(int),                 0, INT32_MAX,        0,           10,   {},                     R | W | G | S | D | O | M },
+    { SRTO_PERIODICNAKGATE, "SRTO_PERIODICNAKGATE", RestrictionType::PRE, sizeof(bool),            false,      true,    false,         true,   {},                     R | W | G | S | D | O | M },
     { SRTO_MAXBW,                 "SRTO_MAXBW", RestrictionType::POST, sizeof(int64_t),      int64_t(-1),  INT64_MAX, int64_t(-1), int64_t(200000),  {int64_t(-2)},    R | W | G | S | D | O | O },
 #ifdef ENABLE_MAXREXMITBW
     { SRTO_MAXREXMITBW,      "SRTO_MAXREXMITBW", RestrictionType::POST, sizeof(int64_t),     int64_t(-1), INT64_MAX,  int64_t(-1), int64_t(200000),  {int64_t(-2)},    R | W | G | S | D | O | O },
@@ -1097,6 +1098,94 @@ TEST_F(TestSocketOptions, ReorderFreezeDefaultDecays)
     ASSERT_NE(srt_close(accepted_sock), SRT_ERROR);
 }
 
+
+// CERALIVE: option plumbing only; periodic NAK gating is implemented separately.
+TEST_F(TestSocketOptions, PeriodicNakGateDefaultOff)
+{
+    // Given a fresh socket, use the opposite value to detect a missing getter.
+    bool bval = true;
+    int blen = (int) sizeof bval;
+
+    // When reading the option before connecting.
+    ASSERT_EQ(srt_getsockopt(m_caller_sock, 0, SRTO_PERIODICNAKGATE, &bval, &blen), SRT_SUCCESS);
+
+    // Then the option is opt-in and has bool size.
+    EXPECT_FALSE(bval);
+    EXPECT_EQ(blen, (int) sizeof(bool));
+}
+
+TEST_F(TestSocketOptions, PeriodicNakGateSetGetRoundTrip)
+{
+    for (const bool enabled : { true, false })
+    {
+        // Given an unconnected socket and each supported bool value.
+        bool bval = !enabled;
+        int blen = (int) sizeof bval;
+
+        // When setting the option before connecting.
+        ASSERT_EQ(srt_setsockopt(m_caller_sock, 0, SRTO_PERIODICNAKGATE, &enabled, sizeof enabled), SRT_SUCCESS);
+
+        // Then the getter returns that value, including an explicit reset to off.
+        ASSERT_EQ(srt_getsockopt(m_caller_sock, 0, SRTO_PERIODICNAKGATE, &bval, &blen), SRT_SUCCESS);
+        EXPECT_EQ(bval, enabled);
+        EXPECT_EQ(blen, (int) sizeof(bool));
+    }
+}
+
+TEST_F(TestSocketOptions, PeriodicNakGateRefusedAfterConnect)
+{
+    // Given a connected pair whose listener enabled the option before listening.
+    const bool enabled = true;
+    ASSERT_EQ(srt_setsockopt(m_listen_sock, 0, SRTO_PERIODICNAKGATE, &enabled, sizeof enabled), SRT_SUCCESS);
+    StartListener();
+    MAKE_UNIQUE_SOCK(accepted_sock, "periodic NAK gate accepted", EstablishConnection());
+
+    for (const SRTSOCKET sock : { m_caller_sock, SRTSOCKET(accepted_sock) })
+    {
+        const bool expected = sock != m_caller_sock;
+        const bool changed = !expected;
+
+        // When attempting to change the option after connecting.
+        EXPECT_EQ(srt_setsockopt(sock, 0, SRTO_PERIODICNAKGATE, &changed, sizeof changed), SRT_ERROR);
+
+        // Then MN_ISCONNECTED is reported and the default/inherited value survives.
+        EXPECT_EQ(srt_getlasterror(NULL), SRT_ECONNSOCK);
+        bool bval = changed;
+        int blen = (int) sizeof bval;
+        ASSERT_EQ(srt_getsockopt(sock, 0, SRTO_PERIODICNAKGATE, &bval, &blen), SRT_SUCCESS);
+        EXPECT_EQ(bval, expected);
+    }
+    accepted_sock.close();
+}
+
+TEST_F(TestSocketOptions, PeriodicNakGateIndependentOfReorderFreezeAndNakReport)
+{
+    const array<SRT_SOCKOPT, 3> options = {{ SRTO_PERIODICNAKGATE, SRTO_REORDERFREEZE, SRTO_NAKREPORT }};
+    for (const bool gate : { false, true })
+    for (const bool freeze : { false, true })
+    for (const bool nak : { false, true })
+    for (size_t changed = 0; changed < options.size(); ++changed)
+    {
+        // Given every combination of the three independent booleans.
+        const array<bool, 3> before = {{ gate, freeze, nak }};
+        for (size_t i = 0; i < options.size(); ++i)
+            ASSERT_EQ(srt_setsockopt(m_caller_sock, 0, options[i], &before[i], sizeof(bool)), SRT_SUCCESS);
+        const bool enabled = !before[changed];
+
+        // When toggling just one option, in either direction.
+        ASSERT_EQ(srt_setsockopt(m_caller_sock, 0, options[changed], &enabled, sizeof enabled), SRT_SUCCESS);
+
+        // Then only that option changes; the other two retain their own values.
+        for (size_t i = 0; i < options.size(); ++i)
+        {
+            bool bval = false;
+            int blen = (int) sizeof bval;
+            ASSERT_EQ(srt_getsockopt(m_caller_sock, 0, options[i], &bval, &blen), SRT_SUCCESS);
+            EXPECT_EQ(bval, i == changed ? enabled : before[i])
+                << "Changed option " << options[changed] << ", read option " << options[i];
+        }
+    }
+}
 
 // Try to set/get SRTO_MININPUTBW with wrong optlen
 TEST_F(TestSocketOptions, MinInputBWWrongLen)
