@@ -240,13 +240,19 @@ typedef enum SRT_SOCKOPT {
    SRTO_MAXREXMITBW = 63,    // Maximum bandwidth limit for retransmision (Bytes/s)
 #endif
 
+   // CERALIVE fork-reserved option band: 111..120, allocated DOWNWARD from 120.
+   // SRTO_REORDERFREEZE = 120 is the band top and must stay the lexically last
+   // member so SRTO_E_SIZE keeps the value 121 that shipped in
+   // srt-v1.5.6+ceralive.1: appending a new option ABOVE it moves the sentinel
+   // and fails the ABI lane (abi.yml) against the published baseline. Each new
+   // fork option takes the next free value BELOW the previous one; never gap-fill
+   // upstream's range and never place a fork option above 120.
+   SRTO_PERIODICNAKGATE = 119, // CERALIVE: periodic NAK reports skip losses still within reorder tolerance (m_FreshLoss)
    // CERALIVE reorder-freeze: receiver-side opt-in to freeze the dynamic
-   // reorder-tolerance decay (decoupled from SRTO_NAKREPORT). Appended HIGH to
-   // avoid colliding with future upstream option numbers; never gap-fill.
+   // reorder-tolerance decay (decoupled from SRTO_NAKREPORT).
    SRTO_REORDERFREEZE = 120,
-   SRTO_PERIODICNAKGATE = 121, // CERALIVE: periodic NAK reports skip losses still within reorder tolerance (m_FreshLoss)
 
-   SRTO_E_SIZE // Always last element, not a valid option.
+   SRTO_E_SIZE // Always last element, not a valid option (== 121; see the band note above).
 } SRT_SOCKOPT;
 
 

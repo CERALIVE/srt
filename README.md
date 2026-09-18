@@ -208,10 +208,13 @@ By contributing code to the SRT project, you agree to license your contribution 
 
 ### CeraLive source sync
 
-The bonded-path convergence branch includes upstream **v1.5.7** security hardening
-while retaining the fork's opt-in reorder freeze and deterministic socket teardown.
-See [CeraLive Patch Set](docs/CERALIVE-PATCHES.md). The published runtime package
-and ABI reference remain `srt-v1.5.6+ceralive.1` until the separate release cutover.
+`1.5.7+ceralive.1` (tag `srt-v1.5.7+ceralive.1`) includes upstream **v1.5.7**
+security hardening while retaining the fork's opt-in reorder freeze and
+deterministic socket teardown, and adds the opt-in periodic NAK gate below. See
+[CeraLive Patch Set](docs/CERALIVE-PATCHES.md) for both socket options, their
+fork-reserved value band (111-120, allocated downward) and collision policy. The `abi.yml` reference
+stays on the previously published `srt-v1.5.6+ceralive.1` until this release is
+published; `1.5.7+ceralive.1` is 100% binary- and source-compatible with it.
 
 The receiver-side `SRTO_PERIODICNAKGATE` option (`periodicnakgate` in tool URIs)
 is default-off. Enabling it excludes losses still within the packet-count reorder

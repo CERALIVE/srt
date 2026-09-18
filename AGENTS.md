@@ -8,9 +8,11 @@ Parent: [`../AGENTS.md`](../AGENTS.md)
 
 - **SONAME:** `libsrt.so.1.5`
 - **Runtime package:** `libsrt1.5-ceralive` for arm64 and amd64, built by
-  `packaging/build-deb.sh` with the GnuTLS backend. Current version
-  **`1.5.6+ceralive.1`** (`master` carries upstream v1.5.6, incl. the KMREQ CVE
-  fixes). The `+`-bearing version is deliberate — see the packaging contract below.
+  `packaging/build-deb.sh` with the GnuTLS backend. Current source version
+  **`1.5.7+ceralive.1`** (upstream v1.5.7 true-merged, incl. the KMREQ, ACK, DROPREQ,
+  FEC and bonding hardening); the latest *published* package is `1.5.6+ceralive.1`
+  until the owner tags `srt-v1.5.7+ceralive.1`. The `+`-bearing version is
+  deliberate — see the packaging contract below.
 - **Device use:** image-building-pipeline stages it from apt.ceralive.tv and
   installs it before `cerastream`. It replaces the Debian GnuTLS/OpenSSL flavors
   and provides their virtual package names; GStreamer and cerastream resolve one
@@ -44,17 +46,20 @@ and workflows, so it runs without building. It locks, in addition to the
 
 | Locked | Current value |
 |--------|---------------|
-| `.deb` version | `1.5.6+ceralive.1` (`CERALIVE_SRT_VERSION` default in `build-deb.sh`) |
-| `Provides` | `libsrt1.5-gnutls (= 1.5.6)`, `libsrt1.5-openssl (= 1.5.6)` |
+| `.deb` version | `1.5.7+ceralive.1` (`CERALIVE_SRT_VERSION` default in `build-deb.sh`) |
+| `Provides` | `libsrt1.5-gnutls (= 1.5.7)`, `libsrt1.5-openssl (= 1.5.7)` |
 | `Conflicts` / `Replaces` | `libsrt1.5-gnutls`, `libsrt1.5-openssl` |
 | SONAME | `libsrt.so.1.5` |
-| No stale pin | neither `publish-release.yml` nor `runtime-package.yml` may retain a `1.5.5` reference |
+| No stale pin | neither `publish-release.yml` nor `runtime-package.yml` may retain a `1.5.5` or `1.5.6` reference |
 
 The versioned `Provides` is what lets this package *replace* both Debian TLS
 flavours rather than co-install beside them — the single-fork invariant depends on
-the `(= 1.5.6)` upstream version matching what Debian's flavours would satisfy, so
+the `(= 1.5.7)` upstream version matching what Debian's flavours would satisfy, so
 the package version and the `Provides` version move together but are NOT the same
-string (`1.5.6+ceralive.1` vs `1.5.6`).
+string (`1.5.7+ceralive.1` vs `1.5.7`). The release version is decided once per
+cutover and recorded in the sender repo's `docs/evidence/bpc/srt-release.json`
+(`srt_release_version`, `srt_tag`, `deb_assets`); packaging and docs read from that
+record rather than inventing a number.
 
 **The `+` is load-bearing downstream.** apt's https method percent-encodes `+` as
 `%2B` in the fetch URL while R2 stores the literal `+`, which 404'd every
@@ -95,38 +100,65 @@ marked as CERALIVE additions.
 
 | Branch | Base | Purpose |
 |--------|------|---------|
-| `master` | Haivision v1.5.6 + CeraLive runtime changes | The maintained CeraLive runtime line and source of released device packages |
+| `master` | Haivision v1.5.7 + CeraLive runtime changes | The maintained CeraLive runtime line and source of released device packages |
 
 `reorderfreeze-1.5.5` is neither a branch nor a tag in CERALIVE/srt or
 Haivision/srt; do not use it as a checkout base. The CeraLive line was reset at
-`66b3609` to Haivision `1e4c908` and retains only the sanctioned
-`SRTO_REORDERFREEZE` patch, not the old BELABOX C-source patches (unconditional
+`66b3609` to Haivision `1e4c908` and retains only the sanctioned socket-option
+patches below, not the old BELABOX C-source patches (unconditional
 reorder-tolerance freeze, periodic-NAK disable, or the
 `iMaxReorderTolerance` TTL override).
 
 ### ABI baseline
 
-The bonded-path convergence branch merges Haivision **v1.5.7** (`899348d`) as a
-true merge, retaining `SRTO_REORDERFREEZE = 120` and deterministic socket teardown.
-It brings upstream handshake, ACK, DROPREQ, FEC, bonding and sample-tool hardening.
-The published package remains `1.5.6+ceralive.1` until the separate release cutover;
-this source sync does not advance the ABI baseline below.
+`1.5.7+ceralive.1` merges Haivision **v1.5.7** (`899348d`) as a true merge
+(`379d129`), retaining `SRTO_REORDERFREEZE = 120`, deterministic socket teardown,
+and adding `SRTO_PERIODICNAKGATE = 119`. It brings upstream handshake, ACK, DROPREQ,
+FEC, bonding and sample-tool hardening.
 
 `.github/workflows/abi.yml` compares proposed builds with the immutable
-`srt-v1.5.6+ceralive.1` tag: the latest shipped CeraLive source release. This
+`srt-v1.5.6+ceralive.1` tag: the latest *published* CeraLive source release. This
 tests compatibility against the ABI that device consumers actually received,
-without depending on a fork-external or absent ref. Advance this baseline only
-after the next CeraLive runtime release is published.
+without depending on a fork-external or absent ref. `1.5.7+ceralive.1` was checked
+against it (workflow-equivalent Debug/BONDING/PKTINFO/MAXREXMITBW build, abi-dumper
+1.2, abi-compliance-checker 2.3): 100% binary and source compatible, zero problems.
+Advance this baseline only after `srt-v1.5.7+ceralive.1` is published, in its own
+PR; never in the release PR itself, and never by silencing the lane. If the lane
+ever fails because of a fork option, fix the option.
 
-## SANCTIONED CERALIVE PATCH — `SRTO_REORDERFREEZE`
+## SANCTIONED CERALIVE PATCHES — `SRTO_REORDERFREEZE`, `SRTO_PERIODICNAKGATE`
 
-A receiver-side, **default-off**, opt-in socket option that freezes the dynamic
-reorder-tolerance **decay**. It exists because SRTLA delivers packets out of order
-by design (traffic is balanced across bonded links); the stock adaptive decay drives
-the tolerance toward 0 and causes spurious retransmissions on a healthy bonded path.
+Two receiver-side, **default-off**, opt-in socket options. Both exist because SRTLA
+delivers packets out of order by design (traffic is balanced across bonded links),
+and stock libsrt's loss handling treats that reordering as loss: the adaptive
+reorder-tolerance decay drives the tolerance toward 0, and the periodic NAK
+re-reports every late packet as if it were lost. Each option fixes exactly one of
+those two mechanisms and nothing else. Canonical inventory with commit SHAs:
+[`docs/CERALIVE-PATCHES.md`](docs/CERALIVE-PATCHES.md).
 
-- **Enum:** `SRTO_REORDERFREEZE = 120` in `srtcore/srt.h` — appended HIGH (never
-  gap-filled) to avoid colliding with future upstream option numbers.
+**Fork-reserved value band 111-120, allocated DOWNWARD from 120.**
+`SRTO_REORDERFREEZE = 120` is the band top and stays the lexically last member;
+`SRTO_PERIODICNAKGATE = 119`; 111-118 are reserved for future fork options (next
+free value below the last). The top is frozen because `SRTO_E_SIZE` is upstream's
+auto-valued public sentinel and `srt-v1.5.6+ceralive.1` shipped it as `121`:
+appending above 120 moves it, which `abi-compliance-checker` rates a Medium binary
+problem and fails `abi.yml` (measured on the first `1.5.7+ceralive.1` candidate at
+`= 121`: 97.2%, one problem; at `= 119`: 100%). Never place a fork option above
+120 and never gap-fill upstream's range. **Collision policy:** if upstream ever
+assigns a value inside 111-120, the fork renumbers its own option at the next
+`+ceralive` release (announced in `docs/CERALIVE-PATCHES.md` and the release notes;
+`abi.yml` is expected to flag it). The upstream value is never shadowed.
+
+**Upstream-proposal status:** neither option has been proposed to Haivision/srt;
+both are deferred until the bonded-path convergence campaign yields field evidence
+on a real bonded ingest. The scope discipline below is what keeps each patch a
+self-contained, upstreamable diff.
+
+### First sanctioned option — `SRTO_REORDERFREEZE`
+
+Freezes the dynamic reorder-tolerance **decay**.
+
+- **Enum:** `SRTO_REORDERFREEZE = 120` in `srtcore/srt.h`.
 - **Config:** `bool CSrtConfig::bReorderFreeze` (default `false`), set via
   `CSrtConfigSetter<SRTO_REORDERFREEZE>` (mirrors `SRTO_LOSSMAXTTL`).
 - **Restriction:** `SRTO_R_PRE` (set before connect/listen). Inherited by accepted
@@ -147,17 +179,35 @@ the tolerance toward 0 and causes spurious retransmissions on a healthy bonded p
 
 ### Second sanctioned option — `SRTO_PERIODICNAKGATE`
 
-`SRTO_PERIODICNAKGATE = 121`, URI `periodicnakgate`, is a **default-off** bool
-(`CSrtConfig::bPeriodicNakGate`) with the same `SRTO_R_PRE` restriction and accepted
-socket inheritance as `SRTO_REORDERFREEZE = 120` (URI `reorderfreeze`). When enabled,
-`checkNAKTimer` subtracts `m_FreshLoss` ranges from periodic loss reports, using the
-packet-count reorder window rather than a separate wall-clock delay. This ports
-onsmith/srt `b5690bc` without its bundled patch switch. The immediate-report path,
-`unlose`, NAK scheduling and the LiveCC interval floor are unchanged; default-off
-still reports the whole loss list. It is independent of both `SRTO_REORDERFREEZE`
-and `SRTO_NAKREPORT`. `test/test_periodic_nak_gate.cpp` exercises a 400 ms wire hold
-at reorder distance 40, the option-off premature-NAK control, and genuine-loss
-expiry plus periodic re-reporting in both modes.
+Gates **periodic** NAK re-reports by the packet-count reorder window.
+
+- **Enum:** `SRTO_PERIODICNAKGATE = 119` in `srtcore/srt.h`; URI `periodicnakgate`
+  (the sibling URI row `reorderfreeze` was added in the same commit).
+- **Config:** `bool CSrtConfig::bPeriodicNakGate` (default `false`), setter in
+  `socketconfig.cpp`, getter in `core.cpp`, plus `group.cpp::getOptDefault`
+  (`RD(false)`) so an empty group answers the default.
+- **Restriction:** `SRTO_R_PRE`; inherited by accepted sockets exactly like
+  `SRTO_REORDERFREEZE`.
+- **Effect:** when `true`, `checkNAKTimer` (`srtcore/core.cpp`, block tagged
+  `// CERALIVE periodic-nak-ttl`) subtracts the `m_FreshLoss` ranges from the loss
+  array before building the periodic report, so only losses that have outlived the
+  reorder window are re-reported. Ports onsmith/srt `b5690bc` (2026-07-05) without
+  its bundled `SRTLAPATCHES` switch; a static comparator replaces the upstream lambda
+  to keep C++03.
+- **Scope discipline:** periodic-report gating ONLY. It does NOT change the
+  immediate loss report, `unlose`, NAK scheduling or the LiveCC interval floor; does
+  NOT add a wall-clock delay or a new tunable; does NOT touch reorder-tolerance decay
+  (that is `SRTO_REORDERFREEZE`); default-off still reports the whole loss list,
+  byte-for-byte as upstream. Independent of both `SRTO_REORDERFREEZE` and
+  `SRTO_NAKREPORT` (all eight bool combinations tested).
+- **Side:** receiver-side only; a no-op on senders.
+- **Tests:** `test/test_socket_options.cpp` — `PeriodicNakGateDefaultOff`,
+  `PeriodicNakGateSetGetRoundTrip`, `PeriodicNakGateRefusedAfterConnect`,
+  `PeriodicNakGateIndependentOfReorderFreezeAndNakReport`.
+  `test/test_periodic_nak_gate.cpp` — `Wire/PeriodicNakGate.ReorderingAndGenuineLoss`
+  over both bool arms: a 400 ms wire hold of packet #100 at reorder distance 40, the
+  option-off premature-NAK control (4 early NAKs for #100), and genuine-loss (#150)
+  expiry plus periodic re-reporting in both modes. Flake-guarded 20x.
 
 Any other functional change to the C/C++ source remains out of scope (see SCOPE
 BOUNDARY). To bump the libsrt version consumed by `cerastream`/`srtla`, update the
@@ -235,7 +285,7 @@ BOUNDARY).
 | Build the library to test it standalone | [BUILD](#build) — `cmake -B build …` |
 | Run the unit + bonding test suite | [TEST (ctest)](#test-ctest) |
 | Find the source / build config / options | [WHERE TO LOOK](#where-to-look) |
-| Touch the reorder-freeze option | See [SANCTIONED CERALIVE PATCH](#sanctioned-ceralive-patch--srto_reorderfreeze) — keep it decay-disable-only and decoupled from NAK |
+| Touch the reorder-freeze or periodic-NAK-gate option | See [SANCTIONED CERALIVE PATCHES](#sanctioned-ceralive-patches--srto_reorderfreeze-srto_periodicnakgate) — keep each to its one mechanism, decoupled from `SRTO_NAKREPORT` and from each other |
 | Update routing/build/test guidance | Edit this `AGENTS.md` |
 | Confirm the runtime contract | [ROLE IN THE GROUP](#role-in-the-group); the device uses `libsrt1.5-ceralive` |
 
@@ -300,9 +350,13 @@ cmake --build build -j$(nproc)
 ctest --test-dir build --output-on-failure
 ```
 
-On the CeraLive baseline derived from Haivision `1e4c908` plus
-`SRTO_REORDERFREEZE`, the full gtest suite passes (1 disabled:
-`CTimer.SleeptoAccuracy`). Note: `ENABLE_TESTING=ON` alone registers no ctest
+On `1.5.7+ceralive.1` (Haivision v1.5.7 plus `SRTO_REORDERFREEZE` and
+`SRTO_PERIODICNAKGATE`), the full gtest suite passes (1 disabled:
+`CTimer.SleeptoAccuracy`). On a sandboxed host, 11 bind/reuse cases (`ReuseAddr.*`,
+`Transmission.FileUpload`, `SocketData.PeerName`) can fail for environment reasons
+unrelated to the source; running the same binaries inside an anonymous
+`unshare --user --map-root-user --net` namespace with `lo` up and a dummy
+`192.0.2.1/24` interface makes them pass. Note: `ENABLE_TESTING=ON` alone registers no ctest
 tests — `ENABLE_UNITTESTS=ON` is what wires the gtest suite into ctest.
 
 Socket tests keep one owner per handle. A `UniqueSocket` must not be bypassed by
@@ -327,6 +381,11 @@ rejection reason.
 | Reorder-freeze option enum | `srtcore/srt.h` → `SRTO_REORDERFREEZE` |
 | Reorder-freeze config field / setter | `srtcore/socketconfig.h` / `srtcore/socketconfig.cpp` |
 | Reorder-freeze decay gates | `srtcore/core.cpp` → `// CERALIVE reorder-freeze` |
+| Periodic-NAK-gate option enum | `srtcore/srt.h` → `SRTO_PERIODICNAKGATE` |
+| Periodic-NAK-gate config field / setter / getter | `srtcore/socketconfig.h` / `srtcore/socketconfig.cpp` / `srtcore/core.cpp` |
+| Periodic-NAK-gate report subtraction | `srtcore/core.cpp` → `checkNAKTimer`, `// CERALIVE periodic-nak-ttl` |
+| Periodic-NAK-gate wire test | `test/test_periodic_nak_gate.cpp` |
+| Release version record | sender repo `docs/evidence/bpc/srt-release.json` |
 | Build config | `CMakeLists.txt` |
 | Build options reference | `docs/build/build-options.md` |
 | License | `LICENSE` (MPLv2.0) |
