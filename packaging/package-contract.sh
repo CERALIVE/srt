@@ -6,7 +6,7 @@ set -euo pipefail
 # a workflow default drifting behind the release is caught before publish.
 #
 # Single source of truth for the release version:
-readonly EXPECT_DEB_VERSION="1.5.7+ceralive.1"
+readonly EXPECT_DEB_VERSION="1.5.7+ceralive.2"
 # The versioned virtual-package the fork provides for both Debian TLS flavors.
 # Tracks the upstream libsrt release the runtime is built from (v1.5.7).
 readonly EXPECT_TLS_VERSION="1.5.7"

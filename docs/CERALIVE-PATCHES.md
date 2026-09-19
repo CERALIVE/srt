@@ -11,11 +11,16 @@ never by rebase/replay, so every upstream tag remains fully contained in the for
 history and the merge-base keeps advancing on each catch-up. The most recent sync is
 upstream **v1.5.7** (`899348d`, KMREQ and encryption-state validation, ACK and
 DROPREQ validation, FEC bounds, bonding BACKUP lifetime safety, and sample-tool
-path validation). It ships as `1.5.7+ceralive.1` (tag `srt-v1.5.7+ceralive.1`,
-package `libsrt1.5-ceralive_1.5.7+ceralive.1_{amd64,arm64}.deb`). The ABI comparison
+path validation), plus six `master` fixes that landed after that tag and are folded as
+a second true merge (#3366 `922a890`, #3371 `73d8cd6`, #3369 `8b852eb`, #3333
+`abf708d`, #3330 `03fae0e`, #3351 `cae8f62` — see
+[`AGENTS.md`](../AGENTS.md) → POST-TAG UPSTREAM FOLD, which also records why #3380
+`ff8ab25` and #3355 `500b1c8` are excluded). It ships as `1.5.7+ceralive.2` (tag
+`srt-v1.5.7+ceralive.2`,
+package `libsrt1.5-ceralive_1.5.7+ceralive.2_{amd64,arm64}.deb`). The ABI comparison
 baseline in `abi.yml` stays on the previously published `srt-v1.5.6+ceralive.1`
-until that release is published; `1.5.7+ceralive.1` was checked 100% binary- and
-source-compatible against it.
+until that release is published; `1.5.7+ceralive.2` was checked 100% binary- and
+source-compatible against it, with zero problems and zero warnings.
 
 There are **two** sanctioned socket-option patches to the C/C++ source
 (`SRTO_REORDERFREEZE`, `SRTO_PERIODICNAKGATE`), plus one teardown correctness fix.

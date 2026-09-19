@@ -6,7 +6,7 @@ on:
       version:
         description: Debian package version
         required: true
-        default: 1.5.7+ceralive.1
+        default: 1.5.7+ceralive.2
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

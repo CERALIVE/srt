@@ -3,7 +3,7 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 arch="${DEB_ARCH:-$(dpkg --print-architecture)}"
-version="${CERALIVE_SRT_VERSION:-1.5.7+ceralive.1}"
+version="${CERALIVE_SRT_VERSION:-1.5.7+ceralive.2}"
 triplet="$(dpkg-architecture -a "${arch}" -qDEB_HOST_MULTIARCH)"
 build_dir="${BUILD_DIR:-${root}/build-deb-${arch}}"
 stage_dir="${STAGE_DIR:-${root}/stage-deb-${arch}}"

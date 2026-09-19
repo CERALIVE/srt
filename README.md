@@ -208,13 +208,17 @@ By contributing code to the SRT project, you agree to license your contribution 
 
 ### CeraLive source sync
 
-`1.5.7+ceralive.1` (tag `srt-v1.5.7+ceralive.1`) includes upstream **v1.5.7**
+`1.5.7+ceralive.2` (tag `srt-v1.5.7+ceralive.2`) includes upstream **v1.5.7**
 security hardening while retaining the fork's opt-in reorder freeze and
-deterministic socket teardown, and adds the opt-in periodic NAK gate below. See
-[CeraLive Patch Set](docs/CERALIVE-PATCHES.md) for both socket options, their
+deterministic socket teardown, and adds the opt-in periodic NAK gate below. It also
+folds six Haivision `master` fixes that landed after the `v1.5.7` tag (#3366, #3371,
+#3369, #3333, #3330, #3351) as a second true merge; two commits in that range are
+deliberately excluded (#3380 public-header signature change, #3355 ABI-lane rewrite).
+See [CeraLive Patch Set](docs/CERALIVE-PATCHES.md) for both socket options, their
 fork-reserved value band (111-120, allocated downward) and collision policy. The `abi.yml` reference
 stays on the previously published `srt-v1.5.6+ceralive.1` until this release is
-published; `1.5.7+ceralive.1` is 100% binary- and source-compatible with it.
+published; `1.5.7+ceralive.2` is 100% binary- and source-compatible with it, with
+zero problems and zero warnings.
 
 The receiver-side `SRTO_PERIODICNAKGATE` option (`periodicnakgate` in tool URIs)
 is default-off. Enabling it excludes losses still within the packet-count reorder

@@ -9,10 +9,11 @@ Parent: [`../AGENTS.md`](../AGENTS.md)
 - **SONAME:** `libsrt.so.1.5`
 - **Runtime package:** `libsrt1.5-ceralive` for arm64 and amd64, built by
   `packaging/build-deb.sh` with the GnuTLS backend. Current source version
-  **`1.5.7+ceralive.1`** (upstream v1.5.7 true-merged, incl. the KMREQ, ACK, DROPREQ,
-  FEC and bonding hardening); the latest *published* package is `1.5.6+ceralive.1`
-  until the owner tags `srt-v1.5.7+ceralive.1`. The `+`-bearing version is
-  deliberate — see the packaging contract below.
+  **`1.5.7+ceralive.2`** (upstream v1.5.7 true-merged, incl. the KMREQ, ACK, DROPREQ,
+  FEC and bonding hardening, plus six post-v1.5.7 Haivision `master` fixes folded as a
+  second true merge — see POST-TAG UPSTREAM FOLD); the latest *published* package is
+  `1.5.6+ceralive.1` until the owner tags `srt-v1.5.7+ceralive.2`. The `+`-bearing
+  version is deliberate — see the packaging contract below.
 - **Device use:** image-building-pipeline stages it from apt.ceralive.tv and
   installs it before `cerastream`. It replaces the Debian GnuTLS/OpenSSL flavors
   and provides their virtual package names; GStreamer and cerastream resolve one
@@ -46,7 +47,7 @@ and workflows, so it runs without building. It locks, in addition to the
 
 | Locked | Current value |
 |--------|---------------|
-| `.deb` version | `1.5.7+ceralive.1` (`CERALIVE_SRT_VERSION` default in `build-deb.sh`) |
+| `.deb` version | `1.5.7+ceralive.2` (`CERALIVE_SRT_VERSION` default in `build-deb.sh`) |
 | `Provides` | `libsrt1.5-gnutls (= 1.5.7)`, `libsrt1.5-openssl (= 1.5.7)` |
 | `Conflicts` / `Replaces` | `libsrt1.5-gnutls`, `libsrt1.5-openssl` |
 | SONAME | `libsrt.so.1.5` |
@@ -56,7 +57,7 @@ The versioned `Provides` is what lets this package *replace* both Debian TLS
 flavours rather than co-install beside them — the single-fork invariant depends on
 the `(= 1.5.7)` upstream version matching what Debian's flavours would satisfy, so
 the package version and the `Provides` version move together but are NOT the same
-string (`1.5.7+ceralive.1` vs `1.5.7`). The release version is decided once per
+string (`1.5.7+ceralive.2` vs `1.5.7`). The release version is decided once per
 cutover and recorded in the sender repo's `docs/evidence/bpc/srt-release.json`
 (`srt_release_version`, `srt_tag`, `deb_assets`); packaging and docs read from that
 record rather than inventing a number.
@@ -111,20 +112,65 @@ reorder-tolerance freeze, periodic-NAK disable, or the
 
 ### ABI baseline
 
-`1.5.7+ceralive.1` merges Haivision **v1.5.7** (`899348d`) as a true merge
+`1.5.7+ceralive.2` merges Haivision **v1.5.7** (`899348d`) as a true merge
 (`379d129`), retaining `SRTO_REORDERFREEZE = 120`, deterministic socket teardown,
 and adding `SRTO_PERIODICNAKGATE = 119`. It brings upstream handshake, ACK, DROPREQ,
-FEC, bonding and sample-tool hardening.
+FEC, bonding and sample-tool hardening, and folds six post-v1.5.7 Haivision `master`
+fixes as a second true merge (see POST-TAG UPSTREAM FOLD).
 
 `.github/workflows/abi.yml` compares proposed builds with the immutable
 `srt-v1.5.6+ceralive.1` tag: the latest *published* CeraLive source release. This
 tests compatibility against the ABI that device consumers actually received,
-without depending on a fork-external or absent ref. `1.5.7+ceralive.1` was checked
+without depending on a fork-external or absent ref. `1.5.7+ceralive.2` was checked
 against it (workflow-equivalent Debug/BONDING/PKTINFO/MAXREXMITBW build, abi-dumper
-1.2, abi-compliance-checker 2.3): 100% binary and source compatible, zero problems.
-Advance this baseline only after `srt-v1.5.7+ceralive.1` is published, in its own
-PR; never in the release PR itself, and never by silencing the lane. If the lane
-ever fails because of a fork option, fix the option.
+1.2, abi-compliance-checker 2.3): 100% binary and source compatible, zero problems
+and zero warnings. Advance this baseline only after `srt-v1.5.7+ceralive.2` is
+published, in its own PR; never in the release PR itself, and never by silencing the
+lane. If the lane ever fails because of a fork option, fix the option.
+
+## POST-TAG UPSTREAM FOLD (`1.5.7+ceralive.2`)
+
+Six Haivision `master` commits landed *after* the `v1.5.7` tag (`899348d`) and are
+folded into this line as a **second true two-parent merge**, built as a linear
+`git cherry-pick -x` series onto `899348d` and then merged with `--no-ff` and **no
+strategy flag**. Every commit keeps its `(cherry picked from commit <full-sha>)`
+trailer, so the original upstream SHAs survive review.
+
+| Upstream PR | SHA (short) | Subject |
+|-------------|-------------|---------|
+| #3366 | `922a890` | Fixed potential div/0 in `CSndRateEstimator` |
+| #3371 | `73d8cd6` | Fixed potential crash / wrong buffer state through outdated positionals |
+| #3369 | `8b852eb` | Fixes for rough cleanup actions |
+| #3333 | `abf708d` | Collection of small detailed fixes and cleanups |
+| #3330 | `03fae0e` | Simplified socket close on fork cleanup to prevent deadlocks |
+| #3351 | `cae8f62` | UnitTest: file transmission interrupted by an immediately closed socket |
+
+The fold touches no installed public header — `srtcore/srt.h` is **untouched** by all
+six — which is why the ABI lane stays at zero problems *and* zero warnings.
+
+**Two commits in the same range are deliberately EXCLUDED. Do not fold them in a
+later merge without their own decision:**
+
+- **`ff8ab25` (#3380), public-header signature change.** Deprecates the public
+  `UDPSOCKET` typedef and retypes `srt_bind_acquire`'s 2nd parameter to `SYSSOCKET`.
+  Measured on a throwaway branch with the identical ABI procedure: still 100%/100%
+  and checker exit `0`, but it raises **2 Low-severity symbol problems** (reported as
+  `warnings: 2`) on `srt_bind_acquire` (`srt.h`) and `UDT::bind2` (`udt.h`) —
+  "Replacement of parameter data type may indicate a change in its semantic meaning".
+  So it would **not** have failed the lane; it is excluded because it is public-API
+  churn with no functional fix, which is out of scope for a runtime-fork release (see
+  SCOPE BOUNDARY). The fold's own run is strictly cleaner (`warnings: 0`).
+- **`500b1c8` (#3355), ABI-lane rewrite.** Rewrites the shared CI into
+  `scripts/workflows/**` and rewrites `abi.yml` itself, which would replace the
+  CeraLive ccache contract (see CI COMPILER-CACHE COVERAGE) and the pinned
+  `SRT_BASE: srt-v1.5.6+ceralive.1` baseline. Adopting it is a CI decision, not a
+  source fix, and must not ride along in a source release. Exclusion is verified
+  exactly: the fold tip differs from upstream `cae8f62` by precisely this commit's
+  patch-id, with zero drift in `srtcore/`, `test/`, or `apps/`.
+
+Note: `abf708d` (#3333) adds an upstream `scripts/codespell.sh`. It coexists with the
+CeraLive `scripts/codespell/` config dir; `codespell.yml` still runs
+`--config scripts/codespell/codespell.cfg` and is unaffected.
 
 ## SANCTIONED CERALIVE PATCHES — `SRTO_REORDERFREEZE`, `SRTO_PERIODICNAKGATE`
 
@@ -350,9 +396,12 @@ cmake --build build -j$(nproc)
 ctest --test-dir build --output-on-failure
 ```
 
-On `1.5.7+ceralive.1` (Haivision v1.5.7 plus `SRTO_REORDERFREEZE` and
-`SRTO_PERIODICNAKGATE`), the full gtest suite passes (1 disabled:
-`CTimer.SleeptoAccuracy`). On a sandboxed host, 11 bind/reuse cases (`ReuseAddr.*`,
+On `1.5.7+ceralive.2` (Haivision v1.5.7 plus `SRTO_REORDERFREEZE`,
+`SRTO_PERIODICNAKGATE` and the six-commit post-tag fold), the full gtest suite passes
+**301/301 of 302 registered** (1 disabled: `CTimer.SleeptoAccuracy`). The fold adds
+exactly two tests over `+ceralive.1`'s 300: `CRcvBufferReadMsg.SmallNonOrderReadBuffer`
+(#3371) and `Transmission.FileUploadInterrupted` (#3351); none were removed.
+On a sandboxed host, 11 bind/reuse cases (`ReuseAddr.*`,
 `Transmission.FileUpload`, `SocketData.PeerName`) can fail for environment reasons
 unrelated to the source; running the same binaries inside an anonymous
 `unshare --user --map-root-user --net` namespace with `lo` up and a dummy
