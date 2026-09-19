@@ -240,12 +240,19 @@ typedef enum SRT_SOCKOPT {
    SRTO_MAXREXMITBW = 63,    // Maximum bandwidth limit for retransmision (Bytes/s)
 #endif
 
+   // CERALIVE fork-reserved option band: 111..120, allocated DOWNWARD from 120.
+   // SRTO_REORDERFREEZE = 120 is the band top and must stay the lexically last
+   // member so SRTO_E_SIZE keeps the value 121 that shipped in
+   // srt-v1.5.6+ceralive.1: appending a new option ABOVE it moves the sentinel
+   // and fails the ABI lane (abi.yml) against the published baseline. Each new
+   // fork option takes the next free value BELOW the previous one; never gap-fill
+   // upstream's range and never place a fork option above 120.
+   SRTO_PERIODICNAKGATE = 119, // CERALIVE: periodic NAK reports skip losses still within reorder tolerance (m_FreshLoss)
    // CERALIVE reorder-freeze: receiver-side opt-in to freeze the dynamic
-   // reorder-tolerance decay (decoupled from SRTO_NAKREPORT). Appended HIGH to
-   // avoid colliding with future upstream option numbers; never gap-fill.
+   // reorder-tolerance decay (decoupled from SRTO_NAKREPORT).
    SRTO_REORDERFREEZE = 120,
 
-   SRTO_E_SIZE // Always last element, not a valid option.
+   SRTO_E_SIZE // Always last element, not a valid option (== 121; see the band note above).
 } SRT_SOCKOPT;
 
 
@@ -646,10 +653,9 @@ enum SRT_KM_STATE
     SRT_KM_S_SECURING      = 1, // Stream encrypted, exchanging Keying Material
     SRT_KM_S_SECURED       = 2, // Stream encrypted, keying Material exchanged, decrypting ok.
     SRT_KM_S_NOSECRET      = 3, // Stream encrypted and no secret to decrypt Keying Material
-    SRT_KM_S_BADSECRET     = 4 // Stream encrypted and wrong secret is used, cannot decrypt Keying Material
-#ifdef ENABLE_AEAD_API_PREVIEW
-    ,SRT_KM_S_BADCRYPTOMODE = 5  // Stream encrypted but wrong cryptographic mode is used, cannot decrypt. Since v1.5.2.
-#endif
+    SRT_KM_S_BADSECRET     = 4, // Stream encrypted and wrong secret is used, cannot decrypt Keying Material
+    SRT_KM_S_BADCRYPTOMODE = 5,  // Stream encrypted but wrong cryptographic mode is used, cannot decrypt. Since v1.5.2.
+    SRT_KM_S_E_SIZE
 };
 
 enum SRT_EPOLL_OPT

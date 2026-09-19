@@ -268,6 +268,7 @@ struct CSrtConfig: CSrtMuxerConfig
     bool bRcvNakReport;        // Enable Receiver Periodic NAK Reports
     int  iMaxReorderTolerance; //< Maximum allowed value for dynamic reorder tolerance
     bool bReorderFreeze;       // CERALIVE reorder-freeze: freeze reorder-tolerance decay (receiver-side opt-in)
+    bool bPeriodicNakGate;
 
     // For the use of CCryptoControl
     // HaiCrypt configuration
@@ -323,6 +324,7 @@ struct CSrtConfig: CSrtMuxerConfig
         , bRcvNakReport(true)
         , iMaxReorderTolerance(0) // Sensible optimal value is 10, 0 preserves old behavior
         , bReorderFreeze(false)   // Opt-in; default preserves stock adaptive decay
+        , bPeriodicNakGate(false)
         , uKmRefreshRatePkt(0)
         , uKmPreAnnouncePkt(0)
         , uSrtVersion(SRT_DEF_VERSION)

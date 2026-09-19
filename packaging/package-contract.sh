@@ -6,13 +6,14 @@ set -euo pipefail
 # a workflow default drifting behind the release is caught before publish.
 #
 # Single source of truth for the release version:
-readonly EXPECT_DEB_VERSION="1.5.6+ceralive.1"
+readonly EXPECT_DEB_VERSION="1.5.7+ceralive.2"
 # The versioned virtual-package the fork provides for both Debian TLS flavors.
-# Tracks the upstream libsrt release the runtime is built from (v1.5.6).
-readonly EXPECT_TLS_VERSION="1.5.6"
+# Tracks the upstream libsrt release the runtime is built from (v1.5.7).
+readonly EXPECT_TLS_VERSION="1.5.7"
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 builder="${root}/packaging/build-deb.sh"
+cmakelists="${root}/CMakeLists.txt"
 publish="${root}/.github/workflows/publish-release.yml"
 runtime="${root}/.github/workflows/runtime-package.yml"
 
@@ -29,6 +30,15 @@ grep -q 'libsrt-gnutls.so.1.5' "${builder}"  || fail "build-deb.sh must ship lib
 # --- Runtime SONAME present (libsrt.so.1.5) ---------------------------------
 grep -qF 'libsrt.so.1.5' "${builder}"        || fail "build-deb.sh must reference the libsrt.so.1.5 runtime SONAME"
 
+# --- Provides version tracks the merged upstream library version -------------
+# The `.deb` version is `<upstream>+ceralive.N`; the upstream prefix and the
+# Provides version must both equal CMakeLists' SRT_VERSION, or the package would
+# claim to satisfy a Debian flavour version it does not ship.
+[[ "${EXPECT_DEB_VERSION%%+*}" == "${EXPECT_TLS_VERSION}" ]] \
+	|| fail "EXPECT_DEB_VERSION upstream prefix must equal EXPECT_TLS_VERSION (${EXPECT_TLS_VERSION})"
+grep -qE "^set \(SRT_VERSION ${EXPECT_TLS_VERSION//./\\.}\)$" "${cmakelists}" \
+	|| fail "CMakeLists.txt SRT_VERSION must be ${EXPECT_TLS_VERSION} (Provides must track the merged upstream)"
+
 # --- Deb version default is the current release -----------------------------
 grep -qF "version=\"\${CERALIVE_SRT_VERSION:-${EXPECT_DEB_VERSION}}\"" "${builder}" \
 	|| fail "build-deb.sh default version must be ${EXPECT_DEB_VERSION}"
@@ -44,15 +54,15 @@ grep -qF 'Replaces: libsrt1.5-gnutls, libsrt1.5-openssl' "${builder}" \
 # --- Release workflow default version tracks the release (no stale 1.5.5) ---
 grep -qF "default: ${EXPECT_DEB_VERSION}" "${publish}" \
 	|| fail "publish-release.yml version input default must be ${EXPECT_DEB_VERSION}"
-if grep -qE '1\.5\.5' "${publish}"; then
-	fail "publish-release.yml still references stale 1.5.5"
+if grep -qE '1\.5\.[56]' "${publish}"; then
+	fail "publish-release.yml still references a stale 1.5.5/1.5.6 version"
 fi
 
 # --- runtime-package.yml verify path references the current deb, not 1.5.5 ---
 grep -qF "libsrt1.5-ceralive_${EXPECT_DEB_VERSION}_amd64.deb" "${runtime}" \
 	|| fail "runtime-package.yml verify-runtime-replacement path must use ${EXPECT_DEB_VERSION}"
-if grep -qE '1\.5\.5' "${runtime}"; then
-	fail "runtime-package.yml still references stale 1.5.5"
+if grep -qE '1\.5\.[56]' "${runtime}"; then
+	fail "runtime-package.yml still references a stale 1.5.5/1.5.6 version"
 fi
 
 printf 'package-contract: OK (%s / Provides (= %s))\n' "${EXPECT_DEB_VERSION}" "${EXPECT_TLS_VERSION}"
