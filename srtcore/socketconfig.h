@@ -72,8 +72,10 @@ written by
 
 static const int SRT_OHEAD_DEFAULT_P100 = 25;
 
-// Set by the D10 A/B (plan upstream-rebase-hard-fork todo 38); 2 = upstream-exact until measured
-constexpr int SRTLA_PATCHES_DEFAULT_NAKGATE = 2;
+// Set by the D10 A/B (plan upstream-rebase-hard-fork todo 38); 2 = upstream-exact until measured.
+// Declared as `static const int` (not `constexpr`) because this header is compiled by the
+// C++03 lane (.github/workflows/ubuntu-c++03.yml builds with -Werror=c++11-compat).
+static const int SRTLA_PATCHES_DEFAULT_NAKGATE = 2;
 
 // NOTE: SRT_VERSION is primarily defined in the build file.
 extern const int32_t SRT_DEF_VERSION;
