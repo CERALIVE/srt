@@ -307,6 +307,7 @@ class CUDT
     friend class CUDTGroup;
     friend class TestMockCUDT; // unit tests
     friend class TestMockControlPackets; // unit tests
+    friend class TestMockPeriodicNakGate; // unit tests
 
     typedef sync::steady_clock::time_point time_point;
     typedef sync::steady_clock::duration duration;
@@ -1390,6 +1391,7 @@ private: // Timers functions
     void checkTimers();
     void considerLegacySrtHandshake(const time_point &timebase);
     int checkACKTimer (const time_point& currtime);
+    void buildFilteredLossReport(std::vector<int32_t>& w_lossdata);
     int checkNAKTimer(const time_point& currtime);
     bool checkExpTimer (const time_point& currtime, int check_reason);  // returns true if the connection is expired
     void checkRexmitTimer(const time_point& currtime);

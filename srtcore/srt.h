@@ -240,6 +240,14 @@ typedef enum SRT_SOCKOPT {
    SRTO_MAXREXMITBW = 63,    // Maximum bandwidth limit for retransmision (Bytes/s)
 #endif
 
+   // CERALIVE periodic-NAK gate: receiver-side opt-in tri-state controlling the
+   // periodic (timer-driven) UMSG_LOSSREPORT. 0 = off (stock Haivision: report
+   // the whole receiver loss list), 1 = filter (drop sequences that are still
+   // within their reorder TTL and report the rest), 2 = suppress (send no
+   // periodic loss report at all; the NAK timer still advances). Appended HIGH to
+   // avoid colliding with future upstream option numbers; never gap-fill.
+   SRTO_PERIODICNAKGATE = 119,
+
    // CERALIVE reorder-freeze: receiver-side opt-in to freeze the dynamic
    // reorder-tolerance decay (decoupled from SRTO_NAKREPORT). Appended HIGH to
    // avoid colliding with future upstream option numbers; never gap-fill.
