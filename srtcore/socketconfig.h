@@ -72,6 +72,9 @@ written by
 
 static const int SRT_OHEAD_DEFAULT_P100 = 25;
 
+// Set by the D10 A/B (plan upstream-rebase-hard-fork todo 38); 2 = upstream-exact until measured
+constexpr int SRTLA_PATCHES_DEFAULT_NAKGATE = 2;
+
 // NOTE: SRT_VERSION is primarily defined in the build file.
 extern const int32_t SRT_DEF_VERSION;
 

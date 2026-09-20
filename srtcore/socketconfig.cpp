@@ -581,6 +581,17 @@ struct CSrtConfigSetter<SRTO_PERIODICNAKGATE>
 };
 
 template<>
+struct CSrtConfigSetter<SRTO_SRTLAPATCHES>
+{
+    static void set(CSrtConfig& co, const void* optval, int optlen)
+    {
+        const bool on = cast_optval<bool>(optval, optlen);
+        co.bReorderFreeze   = on;
+        co.iPeriodicNakGate = on ? SRTLA_PATCHES_DEFAULT_NAKGATE : 0;
+    }
+};
+
+template<>
 struct CSrtConfigSetter<SRTO_MINVERSION>
 {
     static void set(CSrtConfig& co, const void* optval, int optlen)
@@ -983,6 +994,7 @@ int dispatchSet(SRT_SOCKOPT optName, CSrtConfig& co, const void* optval, int opt
         DISPATCH(SRTO_CONNTIMEO);
         DISPATCH(SRTO_DRIFTTRACER);
         DISPATCH(SRTO_LOSSMAXTTL);
+        DISPATCH(SRTO_SRTLAPATCHES);
         DISPATCH(SRTO_PERIODICNAKGATE);
         DISPATCH(SRTO_REORDERFREEZE);
         DISPATCH(SRTO_MINVERSION);

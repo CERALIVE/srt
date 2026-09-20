@@ -235,6 +235,7 @@ const SocketOption srt_options [] {
     { "tlpktdrop", 0, SRTO_TLPKTDROP, SocketOption::PRE, SocketOption::BOOL, nullptr},
     { "snddropdelay", 0, SRTO_SNDDROPDELAY, SocketOption::POST, SocketOption::INT, nullptr},
     { "nakreport", 0, SRTO_NAKREPORT, SocketOption::PRE, SocketOption::BOOL, nullptr},
+    { "srtlapatches", 0, SRTO_SRTLAPATCHES, SocketOption::PRE, SocketOption::BOOL, nullptr},
     { "periodicnakgate", 0, SRTO_PERIODICNAKGATE, SocketOption::PRE, SocketOption::INT, nullptr},
     { "conntimeo", 0, SRTO_CONNTIMEO, SocketOption::PRE, SocketOption::INT, nullptr},
     { "drifttracer", 0, SRTO_DRIFTTRACER, SocketOption::POST, SocketOption::BOOL, nullptr},

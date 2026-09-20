@@ -11,12 +11,14 @@ never by rebase/replay, so every upstream tag remains fully contained in the for
 history and the merge-base keeps advancing on each catch-up. The most recent sync is
 upstream **v1.5.7** (`899348d`, KMREQ and encryption-state validation, ACK and DROPREQ
 validation, FEC bounds, bonding BACKUP lifetime safety, and sample-tool path
-validation). Both CeraLive patches below are retained. The published package and the
+validation). All CeraLive patches below are retained. The published package and the
 immutable ABI comparison baseline remain `srt-v1.5.6+ceralive.1` pending the separate
 release cutover.
 
-There are exactly **two** functional CeraLive patches to the C/C++ source. Everything
-else the fork carries is packaging and CI (documented at the end for completeness).
+The functional CeraLive changes to the C/C++ source are the three socket options
+(`SRTO_REORDERFREEZE = 120`, `SRTO_PERIODICNAKGATE = 119`, `SRTO_SRTLAPATCHES = 118`)
+and the deterministic socket-teardown fix. Everything else the fork carries is
+packaging and CI (documented at the end for completeness).
 
 ---
 
@@ -43,7 +45,48 @@ this as the **only** patch needed for BELABOX-parity baseline ("C is SAFE").
 
 ---
 
-## 2. Deterministic socket teardown
+## 2. `SRTO_PERIODICNAKGATE` — periodic loss-report tri-state
+
+- **Type:** new receiver-side socket option, **default off**
+  (`SRTO_PERIODICNAKGATE = 119`).
+- **Where:** `srtcore/srt.h` (enum), `srtcore/socketconfig.{h,cpp}`
+  (`CSrtConfig::iPeriodicNakGate` + setter), `srtcore/core.cpp` (the NAK-timer
+  decision, tagged `// CERALIVE periodic-NAK gate`),
+  `test/test_periodic_nak_gate.cpp` (tests).
+
+**Rationale.** Stock libsrt emits a `UMSG_LOSSREPORT` on every due NAK timer,
+reporting the whole receiver loss list. On a deliberately-reordered bonded ingest
+this re-reports sequences that are merely late. The option is a tri-state:
+`0` = off (stock), `1` = filter (subtract ranges still inside their reorder TTL,
+report the rest), `2` = suppress (send nothing from this site; the NAK timer
+still advances — behaviourally identical to `irlserver/srt`'s `SRTLAPATCHES`
+suppression). Out-of-range values are rejected with `SRT_EINVPARAM`. Which arm
+ships as the compat default is decided by the D10 A/B; until then the compat shim
+below installs `2`.
+
+---
+
+## 3. `SRTO_SRTLAPATCHES` — irlserver compat enumerator
+
+- **Type:** new bool-like compatibility socket option, **default off**
+  (`SRTO_SRTLAPATCHES = 118`).
+- **Where:** `srtcore/srt.h` (enum), `srtcore/socketconfig.{h,cpp}` (setter that
+  maps onto `bReorderFreeze` + `iPeriodicNakGate`, plus the
+  `SRTLA_PATCHES_DEFAULT_NAKGATE` default), `srtcore/core.cpp` (the conjunctive
+  getter), `apps/socketoptions.hpp` (`srtlapatches` URI row),
+  `test/test_srtlapatches.cpp` (tests).
+
+**Rationale.** Owns the "one switch reproduces `irlserver/srt`'s `SRTLAPATCHES`"
+contract without a second code path: non-zero sets `SRTO_REORDERFREEZE = true`
+and `SRTO_PERIODICNAKGATE` to `SRTLA_PATCHES_DEFAULT_NAKGATE` (initially `2`),
+zero clears both. The getter is `bReorderFreeze && iPeriodicNakGate != 0`, so
+writing either underlying option afterwards overrides it (last write wins). Only
+`0`/non-zero are meaningful. The `SRTLA_PATCHES_DEFAULT_NAKGATE` default is set
+by the D10 A/B (plan `upstream-rebase-hard-fork` todo 38).
+
+---
+
+## 4. Deterministic socket teardown
 
 - **Commit:** `293ae6f45bf116c56d056b3a25312b2aade7dade` (2026-07-13)
   — *fix(core): make socket teardown deterministic*
@@ -93,5 +136,5 @@ C/C++ patches.
 When syncing upstream, keep this file current: a new CeraLive C/C++ patch **must** be
 added here with its commit SHA and a one-paragraph rationale, and a patch that is
 retired (e.g. superseded by an upstream fix) **must** be moved to a "Retired" note
-rather than silently dropped. Any functional change beyond these two patches is out of
+rather than silently dropped. Any functional change beyond these patches is out of
 scope for the fork (see [`AGENTS.md`](../AGENTS.md) → SCOPE BOUNDARY).
