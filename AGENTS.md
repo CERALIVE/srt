@@ -106,6 +106,12 @@ reorder-tolerance freeze, periodic-NAK disable, or the
 
 ### ABI baseline
 
+This branch merges Haivision **v1.5.7** (`899348d`) as a true merge, retaining
+`SRTO_REORDERFREEZE = 120` and deterministic socket teardown. It brings upstream
+handshake, ACK, DROPREQ, FEC, bonding and sample-tool hardening. The published
+package remains `1.5.6+ceralive.1` until the separate release cutover; this source
+sync does not advance the ABI baseline below.
+
 `.github/workflows/abi.yml` compares proposed builds with the immutable
 `srt-v1.5.6+ceralive.1` tag: the latest shipped CeraLive source release. This
 tests compatibility against the ABI that device consumers actually received,
