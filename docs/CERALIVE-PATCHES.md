@@ -124,10 +124,14 @@ non-deterministic teardown surfaces as flaky reconnects.
 
 Package name `libsrt1.5-ceralive`; Debian version `<haivision-base>+ceralive.<n>`;
 git tag `srt-v<debian-version>`; GitHub release name `CeraLive SRT <debian-version>`.
-The Debian revision `<n>` counts CeraLive releases and is independent of the
-Haivision base, so `1.5.7+ceralive.2` is the second CeraLive release, not a second
-patch on `1.5.7`. `dpkg --compare-versions 1.5.7+ceralive.2 gt 1.5.6+ceralive.1` is
-true, so an apt upgrade from the previous release is ordinary.
+`<n>` is the CeraLive Debian revision within one Haivision base; it restarted at `1`
+when the base moved to `1.5.6`. **The `1.5.7` line starts at `.2`, not `.1`:**
+`1.5.7+ceralive.1` was never tagged or published. The identity was fixed while the
+work was still in flight and was kept rather than renumbered, so no downstream pin
+had to move. Do not go looking for the missing `.1`.
+
+Ordering is unaffected — `dpkg --compare-versions 1.5.7+ceralive.2 gt
+1.5.6+ceralive.1` is true — so an apt upgrade from the previous release is ordinary.
 
 ### 1.5.7+ceralive.2 — the SRTLA option set
 
