@@ -1311,8 +1311,9 @@ independently of an explicit NAK report request.
   not reported as lost.
 - `2` — **suppress**: send no periodic loss report from this site at all,
   while the NAK timer still advances. This is behaviourally identical to
-  `irlserver/srt`'s `SRTLAPATCHES` suppression and is the arm the D10 A/B
-  measures.
+  `irlserver/srt`'s `SRTLAPATCHES` suppression, and is the arm the D10 A/B
+  selected as the `SRTO_SRTLAPATCHES` compat default (see
+  [`CERALIVE-PATCHES.md`](../CERALIVE-PATCHES.md) → Releases).
 
 Out-of-range values are rejected with `SRT_EINVPARAM`. The option is
 receiver-side, opt-in, and inherited by accepted sockets from the listener.
@@ -1694,8 +1695,8 @@ working against this SRT.
 Only **0 / non-zero** are meaningful (bool-like; a non-zero `int` is accepted):
 
 - non-zero ⇒ `SRTO_REORDERFREEZE = true` **and** `SRTO_PERIODICNAKGATE` set to
-  its D10 default (`SRTLA_PATCHES_DEFAULT_NAKGATE`, initially `2` =
-  upstream-exact suppress); the getter reads `true`.
+  its D10 default (`SRTLA_PATCHES_DEFAULT_NAKGATE`, `2` = upstream-exact
+  suppress); the getter reads `true`.
 - zero ⇒ both `SRTO_REORDERFREEZE = false` and `SRTO_PERIODICNAKGATE = 0`; the
   getter reads `false`.
 
