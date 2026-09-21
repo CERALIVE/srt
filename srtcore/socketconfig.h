@@ -72,7 +72,13 @@ written by
 
 static const int SRT_OHEAD_DEFAULT_P100 = 25;
 
-// Set by the D10 A/B (plan upstream-rebase-hard-fork todo 38); 2 = upstream-exact until measured.
+// D10 A/B confirmed 2
+// The value is no longer a placeholder: the D10 A/B (plan upstream-rebase-hard-fork
+// todos 36/38) measured arm 1 (filter) against arm 2 (suppress, upstream-exact) over
+// 24/24 valid rows (2 arms x 4 netem loss/reorder cells x 3 runs, no retries). Arm 1 won
+// viewer-observed loss on 1 of 4 cells (the frozen rule needs >= 3) with the goodput
+// guard holding on all 4, so the frozen rule resolves WINNER = 2. Released as
+// libsrt1.5-ceralive 1.5.7+ceralive.2; see docs/CERALIVE-PATCHES.md section 2.
 // Declared as `static const int` (not `constexpr`) because this header is compiled by the
 // C++03 lane (.github/workflows/ubuntu-c++03.yml builds with -Werror=c++11-compat).
 static const int SRTLA_PATCHES_DEFAULT_NAKGATE = 2;
