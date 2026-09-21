@@ -18,6 +18,8 @@ test_ipv6.cpp
 test_listen_callback.cpp
 test_losslist_rcv.cpp
 test_losslist_snd.cpp
+test_periodic_nak_gate.cpp
+test_srtlapatches.cpp
 test_many_connections.cpp
 test_muxer.cpp
 test_seqno.cpp

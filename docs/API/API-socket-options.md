@@ -238,6 +238,7 @@ The following table lists SRT API socket options in alphabetical order. Option d
 | [`SRTO_PEERIDLETIMEO`](#SRTO_PEERIDLETIMEO)             | 1.3.3 | pre      | `int32_t` | ms      | 5000              | 0..      | RW  | GSD+  |
 | [`SRTO_PEERLATENCY`](#SRTO_PEERLATENCY)                 | 1.3.0 | pre      | `int32_t` | ms      | 0                 | 0..      | RW  | GSD   |
 | [`SRTO_PEERVERSION`](#SRTO_PEERVERSION)                 | 1.1.0 |          | `int32_t` | *       |                   |          | R   | GS    |
+| [`SRTO_PERIODICNAKGATE`](#SRTO_PERIODICNAKGATE)         | Ceralive | pre   | `int32_t` |         | 0                 | [0, 2]   | RW  | GSD   |
 | [`SRTO_RCVBUF`](#SRTO_RCVBUF)                           |       | pre-bind | `int32_t` | bytes   | 8192 payloads     | \*       | RW  | GSD+  |
 | [`SRTO_RCVDATA`](#SRTO_RCVDATA)                         |       |          | `int32_t` | pkts    |                   |          | R   | S     |
 | [`SRTO_RCVKMSTATE`](#SRTO_RCVKMSTATE)                   | 1.2.0 |          | `int32_t` | enum    |                   |          | R   | S     |
@@ -245,6 +246,7 @@ The following table lists SRT API socket options in alphabetical order. Option d
 | [`SRTO_RCVSYN`](#SRTO_RCVSYN)                           |       | post     | `bool`    |         | true              |          | RW  | GSI   |
 | [`SRTO_RCVTIMEO`](#SRTO_RCVTIMEO)                       |       | post     | `int32_t` | ms      | -1                | -1, 0..  | RW  | GSI   |
 | [`SRTO_RENDEZVOUS`](#SRTO_RENDEZVOUS)                   |       | pre      | `bool`    |         | false             |          | RW  | S     |
+| [`SRTO_REORDERFREEZE`](#SRTO_REORDERFREEZE)             | Ceralive | pre   | `bool`    |         | false             |          | W   | GSD   |
 | [`SRTO_RETRANSMITALGO`](#SRTO_RETRANSMITALGO)           | 1.4.2 | pre      | `int32_t` |         | 1                 | [0, 1]   | RW  | GSD   |
 | [`SRTO_REUSEADDR`](#SRTO_REUSEADDR)                     |       | pre-bind | `bool`    |         | true              |          | RW  | GSD   |
 | [`SRTO_SENDER`](#SRTO_SENDER)                           | 1.0.4 | pre      | `bool`    |         | false             |          | W   | S     |
@@ -254,6 +256,7 @@ The following table lists SRT API socket options in alphabetical order. Option d
 | [`SRTO_SNDKMSTATE`](#SRTO_SNDKMSTATE)                   | 1.2.0 |          | `int32_t` | enum    |                   |          | R   | S     |
 | [`SRTO_SNDSYN`](#SRTO_SNDSYN)                           |       | post     | `bool`    |         | true              |          | RW  | GSI   |
 | [`SRTO_SNDTIMEO`](#SRTO_SNDTIMEO)                       |       | post     | `int32_t` | ms      | -1                | -1..     | RW  | GSI   |
+| [`SRTO_SRTLAPATCHES`](#SRTO_SRTLAPATCHES)               | Ceralive | pre   | `bool`    |         | false             |          | RW  | GSD   |
 | [`SRTO_STATE`](#SRTO_STATE)                             |       |          | `int32_t` | enum    |                   |          | R   | S     |
 | [`SRTO_STREAMID`](#SRTO_STREAMID)                       | 1.3.0 | pre      | `string`  |         | ""                | [512]    | RW  | GSD   |
 | [`SRTO_TLPKTDROP`](#SRTO_TLPKTDROP)                     | 1.0.6 | pre      | `bool`    |         | \*                |          | RW  | GSD   |
@@ -1290,6 +1293,35 @@ See [`SRTO_VERSION`](#SRTO_VERSION) for the version format.
 
 ---
 
+#### SRTO_PERIODICNAKGATE
+
+| OptName                  | Since    | Restrict | Type       |  Units  | Default | Range  | Dir | Entity |
+| ------------------------ | -------- | -------- | ---------- | ------- | ------- | ------ | --- | ------ |
+| `SRTO_PERIODICNAKGATE`   | Ceralive | pre      | `int32_t`  |         | 0       | [0, 2] | RW  | GSD    |
+
+**CeraLive extension** (`SRTO_PERIODICNAKGATE = 119`, value code in
+`srtcore/srt.h`). Controls the receiver-side **periodic (timer-driven) loss
+report** — the `UMSG_LOSSREPORT` that libsrt emits on each NAK timer expiry,
+independently of an explicit NAK report request.
+
+- `0` — **off** (stock Haivision behaviour): report the entire receiver loss
+  list on every due NAK tick.
+- `1` — **filter**: subtract the sequence ranges that are still inside their
+  reorder TTL and report only what remains, so a merely-reordered sequence is
+  not reported as lost.
+- `2` — **suppress**: send no periodic loss report from this site at all,
+  while the NAK timer still advances. This is behaviourally identical to
+  `irlserver/srt`'s `SRTLAPATCHES` suppression, and is the arm the D10 A/B
+  selected as the `SRTO_SRTLAPATCHES` compat default (see
+  [`CERALIVE-PATCHES.md`](../CERALIVE-PATCHES.md) → Releases).
+
+Out-of-range values are rejected with `SRT_EINVPARAM`. The option is
+receiver-side, opt-in, and inherited by accepted sockets from the listener.
+
+[Return to list](#list-of-options)
+
+---
+
 #### SRTO_RCVBUF
 
 | OptName              | Since | Restrict | Type       |  Units  |   Default  | Range  | Dir | Entity |
@@ -1443,6 +1475,27 @@ it will behave as if in "non-blocking mode". The -1 value means no time limit.
 
 Use Rendezvous connection mode (both sides must set this and both must use the
 procedure of `srt_bind` and then `srt_connect` (or `srt_rendezvous`) to one another.
+
+[Return to list](#list-of-options)
+
+---
+
+#### SRTO_REORDERFREEZE
+
+| OptName                 | Since    | Restrict | Type     |  Units  | Default | Range  | Dir | Entity |
+| ----------------------- | -------- | -------- | -------- | ------- | ------- | ------ | --- | ------ |
+| `SRTO_REORDERFREEZE`    | Ceralive | pre      | `bool`   |         | false   |        | W   | GSD    |
+
+**CeraLive extension** (`SRTO_REORDERFREEZE = 120`, value code in
+`srtcore/srt.h`). Freezes the receiver-side dynamic **reorder-tolerance decay**,
+so a receiver on a deliberately-out-of-order (bonded/SRTLA) ingest can hold
+reorder tolerance at its maximum instead of having stock adaptive decay drive it
+toward zero on a clean ordered stream and trigger spurious retransmissions.
+
+It freezes only the decay — it does not change `SRTO_LOSSMAXTTL`
+(`initial_loss_ttl`), is orthogonal to [`SRTO_NAKREPORT`](#SRTO_NAKREPORT), and
+is a no-op on senders. Opt-in (default off) and inherited by accepted sockets
+from the receive listener.
 
 [Return to list](#list-of-options)
 
@@ -1623,6 +1676,35 @@ but will have no effect on the listener socket itself.
 limit the time up to which the sending operation will block (see
 `SRTO_SNDSYN` for details), so when this time is exceeded, it will behave as
 if in "non-blocking mode". The -1 value means no time limit.
+
+[Return to list](#list-of-options)
+
+---
+
+#### SRTO_SRTLAPATCHES
+
+| OptName                 | Since    | Restrict | Type     |  Units  | Default | Range  | Dir | Entity |
+| ----------------------- | -------- | -------- | -------- | ------- | ------- | ------ | --- | ------ |
+| `SRTO_SRTLAPATCHES`     | Ceralive | pre      | `bool`   |         | false   |        | RW  | GSD    |
+
+**CeraLive compatibility enumerator** (`SRTO_SRTLAPATCHES = 118`, value code in
+`srtcore/srt.h`). It reproduces `irlserver/srt`'s `SRTLAPATCHES` semantics as a
+shim over the two options above, so a consumer written against that fork keeps
+working against this SRT.
+
+Only **0 / non-zero** are meaningful (bool-like; a non-zero `int` is accepted):
+
+- non-zero ⇒ `SRTO_REORDERFREEZE = true` **and** `SRTO_PERIODICNAKGATE` set to
+  its D10 default (`SRTLA_PATCHES_DEFAULT_NAKGATE`, `2` = upstream-exact
+  suppress); the getter reads `true`.
+- zero ⇒ both `SRTO_REORDERFREEZE = false` and `SRTO_PERIODICNAKGATE = 0`; the
+  getter reads `false`.
+
+The getter is the conjunction `bReorderFreeze && iPeriodicNakGate != 0`, so
+writing either underlying option afterwards overrides this option's earlier
+effect (last write wins). The three CeraLive option numbers are `118`
+(`SRTO_SRTLAPATCHES`), `119` (`SRTO_PERIODICNAKGATE`), and `120`
+(`SRTO_REORDERFREEZE`).
 
 [Return to list](#list-of-options)
 

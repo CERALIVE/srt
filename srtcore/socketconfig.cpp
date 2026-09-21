@@ -569,6 +569,29 @@ struct CSrtConfigSetter<SRTO_REORDERFREEZE>
 };
 
 template<>
+struct CSrtConfigSetter<SRTO_PERIODICNAKGATE>
+{
+    static void set(CSrtConfig& co, const void* optval, int optlen)
+    {
+        const int val = cast_optval<int>(optval, optlen);
+        if (val < 0 || val > 2)
+            throw CUDTException(MJ_NOTSUP, MN_INVAL, 0);
+        co.iPeriodicNakGate = val;
+    }
+};
+
+template<>
+struct CSrtConfigSetter<SRTO_SRTLAPATCHES>
+{
+    static void set(CSrtConfig& co, const void* optval, int optlen)
+    {
+        const bool on = cast_optval<bool>(optval, optlen);
+        co.bReorderFreeze   = on;
+        co.iPeriodicNakGate = on ? SRTLA_PATCHES_DEFAULT_NAKGATE : 0;
+    }
+};
+
+template<>
 struct CSrtConfigSetter<SRTO_MINVERSION>
 {
     static void set(CSrtConfig& co, const void* optval, int optlen)
@@ -971,6 +994,8 @@ int dispatchSet(SRT_SOCKOPT optName, CSrtConfig& co, const void* optval, int opt
         DISPATCH(SRTO_CONNTIMEO);
         DISPATCH(SRTO_DRIFTTRACER);
         DISPATCH(SRTO_LOSSMAXTTL);
+        DISPATCH(SRTO_SRTLAPATCHES);
+        DISPATCH(SRTO_PERIODICNAKGATE);
         DISPATCH(SRTO_REORDERFREEZE);
         DISPATCH(SRTO_MINVERSION);
         DISPATCH(SRTO_STREAMID);

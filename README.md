@@ -147,7 +147,7 @@ In live streaming configurations, the SRT protocol maintains a constant end-to-e
 |:-----------------------------------------------------------------------------------------------------------------------------:|:------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------:|
 | [The SRT API](./docs#srt-api-documents)                                                                                       | [IETF Internet Draft](https://datatracker.ietf.org/doc/html/draft-sharabayko-srt-01) | [Sample Apps](./docs#sample-applications)                                         |
 | Reference documentation for the SRT library API                                                                               | The SRT Protocol Internet Draft                                                      | Instructions for using test apps (`srt-live-transmit`, `srt-file-transmit`, etc.) |
-| [SRT Technical Overview](https://github.com/Haivision/srt/files/2489142/SRT_Protocol_TechnicalOverview_DRAFT_2018-10-17.pdf)  | [SRT Deployment Guide](https://www.srtalliance.org/srt-deployment-guide/)            | [SRT CookBook](https://srtlab.github.io/srt-cookbook)                             |
+| [SRT Technical Overview](https://github.com/Haivision/srt/files/2489142/SRT_Protocol_TechnicalOverview_DRAFT_2018-10-17.pdf)  | [SRT Deployment Guide](https://www3.haivision.com/srt-deployment-guide/)            | [SRT CookBook](https://srtlab.github.io/srt-cookbook)                             |
 | Early draft technical overview (precursor to the Internet Draft)                                                              | A comprehensive overview of the protocol with deployment guidelines                  | Development notes on the SRT protocol                                             |
 | [Innovation Labs Blog](https://medium.com/innovation-labs-blog/tagged/secure-reliable-transport)                              | [SRTLab YouTube Channel](https://www.youtube.com/channel/UCr35JJ32jKKWIYymR1PTdpA)   | [Slack](https://srtalliance.slack.com)                                            |
 | The blog on Medium with SRT-related technical articles                                                                        | Technical YouTube channel with useful videos                                         | Slack channels to get the latest updates and ask questions <br />[Join SRT Alliance on Slack](https://slackin-srtalliance.azurewebsites.net/) |
@@ -205,6 +205,13 @@ For information on contributing to the [Internet Draft](https://datatracker.ietf
 By contributing code to the SRT project, you agree to license your contribution under the [MPLv2.0 License](LICENSE).
 
 ## Release History
+
+### CeraLive source sync
+
+This branch includes upstream **v1.5.7** security hardening while retaining the fork's
+opt-in reorder freeze and deterministic socket teardown. See
+[CeraLive Patch Set](docs/CERALIVE-PATCHES.md). The published runtime package and ABI
+reference remain `srt-v1.5.6+ceralive.1` until the separate release cutover.
 
 - [Release notes](https://github.com/Haivision/srt/releases)
 - [SRT versioning](./docs/dev/developers-guide.md#versioning)

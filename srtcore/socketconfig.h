@@ -72,6 +72,17 @@ written by
 
 static const int SRT_OHEAD_DEFAULT_P100 = 25;
 
+// D10 A/B confirmed 2
+// The value is no longer a placeholder: the D10 A/B (plan upstream-rebase-hard-fork
+// todos 36/38) measured arm 1 (filter) against arm 2 (suppress, upstream-exact) over
+// 24/24 valid rows (2 arms x 4 netem loss/reorder cells x 3 runs, no retries). Arm 1 won
+// viewer-observed loss on 1 of 4 cells (the frozen rule needs >= 3) with the goodput
+// guard holding on all 4, so the frozen rule resolves WINNER = 2. Released as
+// libsrt1.5-ceralive 1.5.7+ceralive.2; see docs/CERALIVE-PATCHES.md section 2.
+// Declared as `static const int` (not `constexpr`) because this header is compiled by the
+// C++03 lane (.github/workflows/ubuntu-c++03.yml builds with -Werror=c++11-compat).
+static const int SRTLA_PATCHES_DEFAULT_NAKGATE = 2;
+
 // NOTE: SRT_VERSION is primarily defined in the build file.
 extern const int32_t SRT_DEF_VERSION;
 
@@ -268,6 +279,7 @@ struct CSrtConfig: CSrtMuxerConfig
     bool bRcvNakReport;        // Enable Receiver Periodic NAK Reports
     int  iMaxReorderTolerance; //< Maximum allowed value for dynamic reorder tolerance
     bool bReorderFreeze;       // CERALIVE reorder-freeze: freeze reorder-tolerance decay (receiver-side opt-in)
+    int  iPeriodicNakGate;     // CERALIVE periodic-NAK gate: 0 = off, 1 = filter still-reorderable, 2 = suppress
 
     // For the use of CCryptoControl
     // HaiCrypt configuration
@@ -323,6 +335,7 @@ struct CSrtConfig: CSrtMuxerConfig
         , bRcvNakReport(true)
         , iMaxReorderTolerance(0) // Sensible optimal value is 10, 0 preserves old behavior
         , bReorderFreeze(false)   // Opt-in; default preserves stock adaptive decay
+        , iPeriodicNakGate(0)     // Opt-in; default preserves stock periodic loss reporting
         , uKmRefreshRatePkt(0)
         , uKmPreAnnouncePkt(0)
         , uSrtVersion(SRT_DEF_VERSION)
